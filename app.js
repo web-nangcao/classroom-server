@@ -18,6 +18,9 @@ require('./middlewares/mongodb')(app)
 // Body parser middleware
 require('./middlewares/bodyParser')(app)
 
+// Passport-auth middleware
+require('./middlewares/passport')(app)
+
 // View middleware
 require('./middlewares/view')(app)
 

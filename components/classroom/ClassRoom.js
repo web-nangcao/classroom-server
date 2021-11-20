@@ -12,12 +12,12 @@ const ClassroomSchema = mongoose.Schema({
     required: true,
   },
   host: {
-    type: mongoose.Schema.ObjectId,
+    type: String,
     required: true,
   },
   member: [
     {
-      type: mongoose.Schema.ObjectId,
+      type: String,
       user_type: UserType,
       ref: "users",
     },

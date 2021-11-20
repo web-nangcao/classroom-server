@@ -1,26 +1,44 @@
 const mongoose = require("mongoose")
 
+const bcrypt = require('bcrypt')
+
 const UserSchema = mongoose.Schema({
-  gmail: {
+  email: {
     type: String,
     required: true,
+    unique: true
   },
-  password: {
+  googleId: {
     type: String,
-    required: true,
+    required: true
   },
   code: {
     type: String,
-    required: true,
+    default: ''
   },
   name: {
     type: String,
-    required: true,
+    default: ''
   },
   otpNumber: {
     type: String,
   }
 })
+
+// UserSchema.pre('save', async (next)=>{
+//   const user = this;
+//   const hash = bcrypt.hash(user.password, 10)
+
+//   user.password = hash
+//   next()
+// })
+
+// UserSchema.method.comparePassword = async(password)=>{
+//   const user = this
+//   const compare = await bcrypt.compare(password, user.password)
+
+//   return compare
+// }
 
 const User = mongoose.model("User", UserSchema, "users")
 
