@@ -11,11 +11,14 @@ module.exports = function (passport) {
         // options for strategy
         callbackURL: process.env.CALLBACK_URL,
         clientID: process.env.CLIENT_ID,
-        clientSecret: process.env.CLIENT_SECRET,
+        clientSecret: process.env.CLIENT_SECRET,  
       },
       // This parameters extracted from req.body
       async (accessToken, refreshToken, profile, done) => {
         const email = profile.emails[0].value
+        
+        // console.log('profile: ', profile)
+
         // check if user already exists
         const currentUser = await User.findOne({ googleId: profile.id })
         if (currentUser) {

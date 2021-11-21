@@ -1,7 +1,5 @@
 const mongoose = require("mongoose")
 
-const bcrypt = require('bcrypt')
-
 const UserSchema = mongoose.Schema({
   email: {
     type: String,
@@ -22,23 +20,14 @@ const UserSchema = mongoose.Schema({
   },
   otpNumber: {
     type: String,
-  }
+    default: ''
+  },
+  classrooms: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'ClassRoom'
+  }]
 })
 
-// UserSchema.pre('save', async (next)=>{
-//   const user = this;
-//   const hash = bcrypt.hash(user.password, 10)
-
-//   user.password = hash
-//   next()
-// })
-
-// UserSchema.method.comparePassword = async(password)=>{
-//   const user = this
-//   const compare = await bcrypt.compare(password, user.password)
-
-//   return compare
-// }
 
 const User = mongoose.model("User", UserSchema, "users")
 

@@ -1,7 +1,5 @@
 const mongoose = require("mongoose");
 
-const UserType = require("../user/UserType");
-
 const ClassroomSchema = mongoose.Schema({
   className: {
     type: String,
@@ -15,13 +13,14 @@ const ClassroomSchema = mongoose.Schema({
     type: String,
     required: true,
   },
-  member: [
-    {
-      type: String,
-      user_type: UserType,
-      ref: "users",
+  members: [{
+    email: {
+      type: String
     },
-  ],
+    userType: {
+      type: String
+    }
+  }]
 });
 
 const ClassRoom = mongoose.model("ClassRoom", ClassroomSchema, "classrooms");
