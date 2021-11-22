@@ -6,14 +6,22 @@ const mailService = require('../../services/mailService')
 const UserType = require('../../components/user/UserType')
 const User = require('../user/User')
 
+
+
 // Get list class
 router.get('/', authService.checkToken, async (req, res) => {
   const errorList = []
   let resValue = null
   const user = await User.findOne({ email: req.authData.userEmail }).populate('classrooms')
 
-  resValue = {
-    classrooms: user.classrooms,
+  if (!user) {
+    resValue = {
+      classrooms: [],
+    }
+  } else {
+    resValue = {
+      classrooms: user.classrooms,
+    }
   }
 
   res.json({
@@ -41,12 +49,16 @@ router.post('/create', authService.checkToken, async (req, res) => {
     ],
   }).save()
   const user = await User.findOne({ email: host })
-  user.classrooms.push(classroom._id)
-  user.save()
-  console.log('Adding new user')
+  if (!user) {
+    errorList.push('/Người dùng không tồn tại')
+  } else {
+    user.classrooms.push(classroom._id)
+    user.save()
+    console.log('Adding new user')
 
-  resValue = {
-    classroom: classroom,
+    resValue = {
+      classroom: classroom,
+    }
   }
   await res.json({
     resValue: resValue,
@@ -88,7 +100,6 @@ router.get('/join-class/:classroomId/:userType', authService.checkToken, async (
   const errorList = []
   let resValue = null
 
-
   const user = await User.findOne({ email: email }).populate('classrooms')
   if (!user) {
     errorList.push('Email không hợp lệ')
@@ -96,19 +107,24 @@ router.get('/join-class/:classroomId/:userType', authService.checkToken, async (
     if (await authService.isBelongToClass(user.email, classroomId)) {
       errorList.push('Đã tham gia lớp học này rồi')
     } else {
-      console.log(`${email} tham gia lớp học mới`)
       const classroom = await ClassRoom.findOne({ _id: classroomId })
-      classroom.members.push({
-        email: email,
-        userType: userType,
-      })
-      await classroom.save()
-
-      user.classrooms.push(classroom._id)
-      await user.save()
-      resValue = {
-        classroom: classroom,
-        user: user,
+      if (!classroom) {
+        errorList.push('Lớp học không tồn tại')
+      } 
+      else {
+        console.log(`${email} tham gia lớp học mới`)
+        classroom.members.push({
+          email: email,
+          userType: userType,
+        })
+        await classroom.save()
+  
+        user.classrooms.push(classroom._id)
+        await user.save()
+        resValue = {
+          classroom: classroom,
+          user: user,
+        }
       }
     }
   }
@@ -119,47 +135,50 @@ router.get('/join-class/:classroomId/:userType', authService.checkToken, async (
 })
 
 // Create invite link
-router.get('/create-invite-link/:classroomId/:userType', authService.checkToken, async (req, res) => {
-  const classroomId = req.params.classroomId
-  const userType = req.params.userType
-  const errorList = []
-  let resValue = null
-  await ClassRoom.findOne({ _id: classroomId })
-    .then((classroom) => {
-      if (classroom != null) {
-        console.log('create invite link')
-        resValue = {
-          inviteLink: `${process.env.HOSTNAME}/join-class/${classroom._id}/${userType}`,
+router.get(
+  '/create-invite-link/:classroomId/:userType',
+  authService.checkToken,
+  async (req, res) => {
+    const classroomId = req.params.classroomId
+    const userType = req.params.userType
+    const errorList = []
+    let resValue = null
+    await ClassRoom.findOne({ _id: classroomId })
+      .then((classroom) => {
+        if (classroom != null) {
+          console.log('create invite link')
+          resValue = {
+            inviteLink: `${process.env.HOSTNAME}/join-class/${classroom._id}/${userType}`,
+          }
+        } else {
+          errorList.push('Classroom Id not found')
         }
-      } else {
-        errorList.push('Classroom Id not found')
-      }
+      })
+      .catch((err) => {
+        console.error(err)
+        errorList.push(err)
+      })
+    await res.json({
+      errorList: errorList,
+      resValue: resValue,
     })
-    .catch((err) => {
-      console.error(err)
-      errorList.push(err)
-    })
-  await res.json({
-    errorList: errorList,
-    resValue: resValue,
-  })
-})
+  }
+)
 
 // Invite friend
 router.post('/invite/:classroomId/:userType', authService.checkToken, async (req, res) => {
   const { emails } = req.body
-  console.log('first emails: ', emails)
+  console.log('invite to emails: ', emails)
   const classroomId = req.params.classroomId
   const userType = req.params.userType
   const errorList = []
   let resValue = null
 
-  const classroom = await ClassRoom.findOne({_id: classroomId})
-  if(!classroom) {
+  const classroom = await ClassRoom.findOne({ _id: classroomId })
+  if (!classroom) {
     errorList.push('Lớp học không tồn tại')
-  }
-  else {
-    if (!await authService.isBelongToClass(req.authData.userEmail, classroomId)) {
+  } else {
+    if (!(await authService.isBelongToClass(req.authData.userEmail, classroomId))) {
       errorList.push('User who create invitation doesnt belong to this class')
     } else {
       const inviteLink = `${process.env.HOSTNAME}/join-class/${classroomId}/${userType}`
@@ -169,7 +188,7 @@ router.post('/invite/:classroomId/:userType', authService.checkToken, async (req
       }
     }
   }
-  
+
   await res.json({
     errorList: errorList,
     resValue: resValue,

@@ -10,7 +10,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 require('dotenv').config()
 
 // Cors
-app.use(cors())
+app.use(cors({ origin: true }));
 
 // Mongodb middleware
 require('./middlewares/mongodb')(app)

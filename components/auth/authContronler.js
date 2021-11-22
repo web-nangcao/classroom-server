@@ -3,23 +3,14 @@ const passport = require('passport')
 const express = require('express')
 const router = express.Router()
 
-router.get(
-  '/google',
-  passport.authenticate('google', {
+
+// Require access_token(google token) in request body
+router.post(
+  '/google-token',
+  passport.authenticate('google-token', { 
     session: false,
     scope: ['profile', 'email'],
-    accessType: 'offline',
-    approvalPrompt: 'force',
-  })
-)
-
-// callback url upon successful google authentication
-router.get(
-  '/google/callback/',
-  passport.authenticate('google', { session: false }),
-  (req, res) => {
-    authService.signToken(req, res)
-  }
+  }), authService.signToken
 )
 
 // route to check token with postman.
@@ -33,12 +24,11 @@ router.get('/myverify', authService.checkToken, (req, res) => {
 })
 
 // logout
-router.get('/logout', authService.checkToken, (req, res)=>{
+router.get('/logout', authService.checkToken, (req, res) => {
   req.logout()
   if (process.env.FONTEND_LOGIN) {
     res.redirect(process.env.FONTEND_LOGIN)
-  }
-  else {
+  } else {
     res.send('Fontend_login_page')
   }
 })

@@ -1,35 +1,30 @@
-const passport = require('passport')
-const GoogleStrategy = require('passport-google-oauth20')
+const GoogleStrategy = require('passport-google-oauth20').Strategy
+const GoogleTokenStrategy = require('passport-google-token').Strategy
 const User = require('../components/user/User')
-
-require('dotenv').config()
 
 module.exports = function (passport) {
   passport.use(
-    new GoogleStrategy(
+    new GoogleTokenStrategy(
       {
-        // options for strategy
-        callbackURL: process.env.CALLBACK_URL,
         clientID: process.env.CLIENT_ID,
-        clientSecret: process.env.CLIENT_SECRET,  
+        clientSecret: process.env.CLIENT_SECRET,
       },
-      // This parameters extracted from req.body
       async (accessToken, refreshToken, profile, done) => {
-        const email = profile.emails[0].value
         
-        // console.log('profile: ', profile)
+        const email = profile.emails[0].value
 
-        // check if user already exists
-        const currentUser = await User.findOne({ googleId: profile.id })
+        // Check if user already exists
+        const currentUser = await User.findOne({ email: email })
         if (currentUser) {
-          // already have the user -> return (login)
+          // User already exists
           return done(null, currentUser)
         } else {
-          // register user and return
+          // register new user
           const newUser = await new User({ email: email, googleId: profile.id }).save()
           return done(null, newUser)
         }
       }
     )
   )
+
 }
