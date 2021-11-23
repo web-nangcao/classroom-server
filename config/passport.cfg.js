@@ -10,7 +10,7 @@ module.exports = function (passport) {
         clientSecret: process.env.CLIENT_SECRET,
       },
       async (accessToken, refreshToken, profile, done) => {
-        
+        console.log('accessToken: ', accessToken)
         const email = profile.emails[0].value
 
         // Check if user already exists

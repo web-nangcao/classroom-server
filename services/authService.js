@@ -1,11 +1,10 @@
 const jwt = require('jsonwebtoken')
-const ClassRoom = require('../components/classroom/ClassRoom')
 const User = require('../components/user/User')
 
 // Issue Token
 exports.signToken = (req, res) => {
   if (!req.user) {
-    return res.status(401).send({ error: "User was not authenticated" });
+    return res.status(401).send({ error: 'User was not authenticated' })
   }
   const payload = {
     userId: req.user._id,
@@ -40,7 +39,11 @@ exports.checkToken = (req, res, next) => {
       }
     })
   } else {
-    res.sendStatus(403)
+    if (process.env.FONTEND_LOGIN) {
+      res.redirect(process.env.FONTEND_LOGIN)
+    } else {
+      res.sendStatus(403)
+    }
   }
 }
 
@@ -49,8 +52,7 @@ exports.isBelongToClass = async (email, classroomId) => {
     const user = await User.findOne({ email: email })
     if (!user) {
       resolve(false)
-    }
-    else {
+    } else {
       if (user.classrooms.indexOf(classroomId) == -1) {
         resolve(false)
       }

@@ -7,4 +7,10 @@ module.exports = function(app) {
     app.use('/user', user)
     app.use('/auth', auth)
     app.use('/', classroom)
+
+    // Testing dev
+    if (process.env.IS_TESTING == 'true') {
+        console.log("Testing environment")
+        app.use('/test', require('../components/test/testControler'))
+    }
 }
