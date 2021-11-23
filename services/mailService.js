@@ -2,14 +2,24 @@ const nodemailer = require('nodemailer')
 
 exports.invite = async (emails, inviteLink) => {
   return new Promise((resolve, reject)=>{
-    console.log('emails: ', emails)
-
     //Tiến hành gửi mail, nếu có gì đó bạn có thể xử lý trước khi gửi mail
+    // const transporter = nodemailer.createTransport({
+    //   // config mail server
+    //   host: 'smtp.gmail.com',
+    //   port: 465,
+    //   secure: true,
+    //   auth: {
+    //     user: process.env.EMAIL, //Tài khoản gmail vừa tạo
+    //     pass: process.env.PASSWORD, //Mật khẩu tài khoản gmail vừa tạo
+    //   },
+    //   tls: {
+    //     // do not fail on invalid certs
+    //     rejectUnauthorized: false,
+    //   },
+    // })
     const transporter = nodemailer.createTransport({
       // config mail server
-      host: 'smtp.gmail.com',
-      port: 465,
-      secure: true,
+      service: "gmail",
       auth: {
         user: process.env.EMAIL, //Tài khoản gmail vừa tạo
         pass: process.env.PASSWORD, //Mật khẩu tài khoản gmail vừa tạo
