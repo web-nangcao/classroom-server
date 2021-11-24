@@ -3,6 +3,19 @@ const router = express.Router()
 const User = require('./User')
 const authService = require('../../services/authService')
 
+// POST - manage user profile
+// Api endpoint: <Host>/user/account/manage-profile
+// Request header: Bearer <access_token>
+// Request body = {
+//   code: String,
+//   name: String
+// }
+// Response body = {
+//   errorList: [],
+//   resValue: {
+//     user: user
+//   }
+// }
 router.post('/account/manage-profile', authService.checkToken, async (req, res)=>{
   const {code, name} = req.body
   const errorList = []

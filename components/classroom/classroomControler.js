@@ -8,11 +8,15 @@ const User = require('../user/User')
 
 // Get list classes
 // Api endpoint: <HOST>/
-// Reqest header: Bearer <access_token>
-// Response body:
-// -- errorList: []
-// -- resValue: []:
-// ---- classrooms: []
+// Request header: Bearer <access_token>
+// Response body = {
+//   erroList: [],
+//   resValue: {
+//     classrooms: [{
+//       classroom: classroom
+//     }]
+//   }
+// }
 router.get('/', authService.checkToken, async (req, res) => {
   const errorList = []
   let resValue = null
@@ -34,16 +38,21 @@ router.get('/', authService.checkToken, async (req, res) => {
   })
 })
 
-// Create new class
+// POST -  Create new class
 // Api endpoint: <HOST>/create
 // Request header: Bearer <access_token>
-// Request body:
-// -- className: str
-// -- topic: str
-// Response body:
-// -- errorList: []
-// -- resValue: []:
-// ---- classroom: classroom
+// Request body = {
+//   className: String,
+//   topic: String
+// }
+// Response body = {
+//   erroList: [],
+//   resValue: {
+//     classrooms: [
+//       classroom: classroom
+//     ]
+//   }
+// }
 router.post('/create', authService.checkToken, async (req, res) => {
   const { className, topic } = req.body
   const host = req.authData.userEmail
@@ -79,13 +88,17 @@ router.post('/create', authService.checkToken, async (req, res) => {
   })
 })
 
-// Get class detail
+// GET - class detail
 // Api endpoint: <HOST>/
 // Reqest header: Bearer <access_token>
-// Response body:
-// -- errorList: []
-// -- resValue: []:
-// ---- classrooms: []
+// Response body = {
+//   erroList: [],
+//   resValue: {
+//     classrooms: [{
+//       classroom: classroom
+//     }]
+//   }
+// }
 router.get('/get-class-detail/:classroomId', authService.checkToken, async (req, res) => {
   console.log('getClass Detail')
   const email = req.authData.userEmail
@@ -114,14 +127,17 @@ router.get('/get-class-detail/:classroomId', authService.checkToken, async (req,
 // Post - Join class by generated link
 // Api endpoint: <HOST>/join-class
 // Request header: Bearer <access_token>
-// Request body:
-// -- classroomId: str
-// -- userType: str
-// Response body:
-// -- errorList: []
-// -- resValue: []:
-// ---- classroom: classroom
-// ---- user: user
+// Request body = {
+//   classroomId: String,
+//   userType: String
+// }
+// Response body = {
+//   errorList: [],
+//   resValue: {
+//     classroom: classroom,
+//     user: user
+//   }
+// }
 router.post('/join-class', authService.checkToken, async (req, res) => {
   const { classroomId, userType } = req.body
   const email = req.authData.userEmail
@@ -168,11 +184,12 @@ router.post('/join-class', authService.checkToken, async (req, res) => {
 
 // Get - Join class by gmail
 // Api endpoint: <HOST>/join-class-gmail?classroomId&email&userType
-// Response body:
-// -- errorList: []
-// -- resValue: []:
-// ---- classroom: classroom
-// ---- user: user
+// Response body = {
+//   errorList: [],
+//   resValue = {
+//     message: String
+//   }
+// }
 router.get('/join-class-gmail', async (req, res) => {
   const { classroomId, email, userType } = req.query
   const errorList = []
@@ -217,14 +234,17 @@ router.get('/join-class-gmail', async (req, res) => {
 // Post - Invite friend by mail
 // Api endpoint: <HOST>/invite-gmail
 // Request header: Bearer <access_token>
-// Request body:
-// -- classroomId: str
-// -- inviteEmail: str
-// -- userType: str
-// Response body:
-// -- errorList: []
-// -- resValue: []:
-// ---- message
+// Request body = {
+//   classroomId: String,
+//   inviteEmail: String,
+//   userType: String
+// }
+// Response body = {
+//   errorList: [],
+//   resValue = {
+//     message: String
+//   }
+// }
 router.post('/invite-gmail', authService.checkToken, async (req, res) => {
   const { classroomId, inviteEmail, userType } = req.body
   const errorList = []
