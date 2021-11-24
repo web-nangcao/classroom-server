@@ -219,7 +219,7 @@ router.get('/join-class-gmail', async (req, res) => {
 // Request header: Bearer <access_token>
 // Request body:
 // -- classroomId: str
-// -- email: str
+// -- inviteEmail: str
 // -- userType: str
 // Response body:
 // -- errorList: []
