@@ -15,14 +15,14 @@ app.use(cors({ origin: true }));
 // Mongodb middleware
 require('./middlewares/mongodb')(app)
 
-// Body parser middleware
+// Body parser midleware
 require('./middlewares/bodyParser')(app)
+
+// Cooke parser middlewares
+require('./middlewares/cookeParser')
 
 // Passport-auth middleware
 require('./middlewares/passport')(app)
-
-// View middleware
-require('./middlewares/view')(app)
 
 // Router middleware
 require('./middlewares/router')(app)

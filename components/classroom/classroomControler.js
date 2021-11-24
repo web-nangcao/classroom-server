@@ -6,9 +6,13 @@ const mailService = require('../../services/mailService')
 const UserType = require('../../components/user/UserType')
 const User = require('../user/User')
 
-
-
-// Get list class
+// Get list classes
+// Api endpoint: <HOST>/
+// Reqest header: Bearer <access_token>
+// Response body:
+// -- errorList: []
+// -- resValue: []:
+// ---- classrooms: []
 router.get('/', authService.checkToken, async (req, res) => {
   const errorList = []
   let resValue = null
@@ -31,6 +35,15 @@ router.get('/', authService.checkToken, async (req, res) => {
 })
 
 // Create new class
+// Api endpoint: <HOST>/create
+// Request header: Bearer <access_token>
+// Request body:
+// -- className: str
+// -- topic: str
+// Response body:
+// -- errorList: []
+// -- resValue: []:
+// ---- classroom: classroom
 router.post('/create', authService.checkToken, async (req, res) => {
   const { className, topic } = req.body
   const host = req.authData.userEmail
@@ -67,6 +80,12 @@ router.post('/create', authService.checkToken, async (req, res) => {
 })
 
 // Get class detail
+// Api endpoint: <HOST>/
+// Reqest header: Bearer <access_token>
+// Response body:
+// -- errorList: []
+// -- resValue: []:
+// ---- classrooms: []
 router.get('/get-class-detail/:classroomId', authService.checkToken, async (req, res) => {
   console.log('getClass Detail')
   const email = req.authData.userEmail
@@ -92,85 +111,21 @@ router.get('/get-class-detail/:classroomId', authService.checkToken, async (req,
   })
 })
 
-// Join class
-router.get('/join-class/:classroomId/:userType', authService.checkToken, async (req, res) => {
-  const classroomId = req.params.classroomId
-  const userType = req.params.userType
+// Post - Join class by generated link
+// Api endpoint: <HOST>/join-class
+// Request header: Bearer <access_token>
+// Request body:
+// -- classroomId: str
+// -- userType: str
+// Response body:
+// -- errorList: []
+// -- resValue: []:
+// ---- classroom: classroom
+// ---- user: user
+router.post('/join-class', authService.checkToken, async (req, res) => {
+  const { classroomId, userType } = req.body
   const email = req.authData.userEmail
-  const errorList = []
-  let resValue = null
 
-  const user = await User.findOne({ email: email }).populate('classrooms')
-  if (!user) {
-    errorList.push('Email không hợp lệ')
-  } else {
-    if (await authService.isBelongToClass(user.email, classroomId)) {
-      errorList.push('Đã tham gia lớp học này rồi')
-    } else {
-      const classroom = await ClassRoom.findOne({ _id: classroomId })
-      if (!classroom) {
-        errorList.push('Lớp học không tồn tại')
-      } 
-      else {
-        console.log(`${email} tham gia lớp học mới`)
-        classroom.members.push({
-          email: email,
-          userType: userType,
-        })
-        await classroom.save()
-  
-        user.classrooms.push(classroom._id)
-        await user.save()
-        resValue = {
-          classroom: classroom,
-          user: user,
-        }
-      }
-    }
-  }
-  await res.json({
-    resValue: resValue,
-    errorList: errorList,
-  })
-})
-
-// Create invite link
-router.get(
-  '/create-invite-link/:classroomId/:userType',
-  authService.checkToken,
-  async (req, res) => {
-    const classroomId = req.params.classroomId
-    const userType = req.params.userType
-    const errorList = []
-    let resValue = null
-    await ClassRoom.findOne({ _id: classroomId })
-      .then((classroom) => {
-        if (classroom != null) {
-          console.log('create invite link')
-          resValue = {
-            inviteLink: `${process.env.HOSTNAME}/join-class/${classroom._id}/${userType}`,
-          }
-        } else {
-          errorList.push('Classroom Id not found')
-        }
-      })
-      .catch((err) => {
-        console.error(err)
-        errorList.push(err)
-      })
-    await res.json({
-      errorList: errorList,
-      resValue: resValue,
-    })
-  }
-)
-
-// Invite friend
-router.post('/invite/:classroomId/:userType', authService.checkToken, async (req, res) => {
-  const { emails } = req.body
-  console.log('invite to emails: ', emails)
-  const classroomId = req.params.classroomId
-  const userType = req.params.userType
   const errorList = []
   let resValue = null
 
@@ -178,17 +133,125 @@ router.post('/invite/:classroomId/:userType', authService.checkToken, async (req
   if (!classroom) {
     errorList.push('Lớp học không tồn tại')
   } else {
-    if (!(await authService.isBelongToClass(req.authData.userEmail, classroomId))) {
-      errorList.push('User who create invitation doesnt belong to this class')
+    const user = await User.findOne({ email: email })
+    if (!user) {
+      errorList.push('Tài khoản này không tồn tại')
     } else {
-      const inviteLink = `${process.env.HOSTNAME}/join-class/${classroomId}/${userType}`
-      const message = await mailService.invite(emails, inviteLink)
-      resValue = {
-        message: message,
+      if (await authService.isBelongToClass(user.email, classroom._id)) {
+        errorList.push('Đã tham gia lớp học này rồi')
+      } else {
+        if (userType != UserType.STUDENT && userType != UserType.TEACHER) {
+          errorList.push('UserType không hợp lệ')
+        } else {
+          console.log(`${email} tham gia lớp học mới`)
+          classroom.members.push({
+            email: email,
+            userType: userType,
+          })
+          await classroom.save()
+
+          user.classrooms.push(classroom._id)
+          await user.save()
+          resValue = {
+            classroom: classroom,
+            user: user,
+          }
+        }
       }
     }
   }
+  res.json({
+    errorList: errorList,
+    resValue: resValue,
+  })
+})
 
+// Get - Join class by gmail
+// Api endpoint: <HOST>/join-class-gmail?classroomId&email&userType
+// Response body:
+// -- errorList: []
+// -- resValue: []:
+// ---- classroom: classroom
+// ---- user: user
+router.get('/join-class-gmail', async (req, res) => {
+  const { classroomId, email, userType } = req.query
+  const errorList = []
+  let resValue = null
+
+  const classroom = await ClassRoom.findOne({ _id: classroomId })
+  if (!classroom) {
+    errorList.push('Lớp học không tồn tại')
+  } else {
+    const user = await User.findOne({ email: email })
+    if (!user) {
+      errorList.push('Tài khoản này không tồn tại')
+    } else {
+      if (await authService.isBelongToClass(user.email, classroom._id)) {
+        errorList.push('Đã tham gia lớp học này rồi')
+      } else {
+        if (userType != UserType.STUDENT && userType != UserType.TEACHER) {
+          errorList.push('UserType không hợp lệ')
+        } else {
+          console.log(`${email} tham gia lớp học mới`)
+          classroom.members.push({
+            email: email,
+            userType: userType,
+          })
+          await classroom.save()
+
+          user.classrooms.push(classroom._id)
+          await user.save()
+          resValue = {
+            message: 'Tham gia lớp học thành công, hãy trở về với ClassRoom'
+          }
+        }
+      }
+    }
+  }
+  res.json({
+    errorList: errorList,
+    resValue: resValue,
+  })
+})
+
+// Post - Invite friend by mail
+// Api endpoint: <HOST>/invite-gmail
+// Request header: Bearer <access_token>
+// Request body:
+// -- classroomId: str
+// -- email: str
+// -- userType: str
+// Response body:
+// -- errorList: []
+// -- resValue: []:
+// ---- message
+router.post('/invite-gmail', authService.checkToken, async (req, res) => {
+  const { classroomId, inviteEmail, userType } = req.body
+  const errorList = []
+  let resValue = null
+  const classroom = await ClassRoom.findOne({ _id: classroomId })
+  if (!classroom) {
+    errorList.push('Lớp học không tồn tại')
+  } else {
+    if (!(await authService.isBelongToClass(req.authData.userEmail, classroomId))) {
+      errorList.push('User who create invitation doesnt belong to this class')
+    } else {
+      const inviteUser = await User.findOne({ email: inviteEmail })
+      if (!inviteUser) {
+        errorList.push('Invite-User không tồn tại')
+      } else {
+        if (userType != UserType.STUDENT && userType != UserType.TEACHER) {
+          errorList.push('User-Type không hợp lệ')
+        } else {
+          const inviteLink = `${process.env.HOSTNAME}/join-class-gmail?classroomId=${classroomId}&email=${inviteEmail}&userType=${userType}}`
+          const message = await mailService.invite(inviteEmail, inviteLink)
+          resValue = {
+            message: message,
+          }
+        }
+      }
+    }
+  }
   await res.json({
     errorList: errorList,
     resValue: resValue,

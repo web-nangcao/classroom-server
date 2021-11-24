@@ -1,22 +1,8 @@
 const nodemailer = require('nodemailer')
 
-exports.invite = async (emails, inviteLink) => {
+exports.invite = async (email, inviteLink) => {
   return new Promise((resolve, reject)=>{
     //Tiến hành gửi mail, nếu có gì đó bạn có thể xử lý trước khi gửi mail
-    // const transporter = nodemailer.createTransport({
-    //   // config mail server
-    //   host: 'smtp.gmail.com',
-    //   port: 465,
-    //   secure: true,
-    //   auth: {
-    //     user: process.env.EMAIL, //Tài khoản gmail vừa tạo
-    //     pass: process.env.PASSWORD, //Mật khẩu tài khoản gmail vừa tạo
-    //   },
-    //   tls: {
-    //     // do not fail on invalid certs
-    //     rejectUnauthorized: false,
-    //   },
-    // })
     const transporter = nodemailer.createTransport({
       // config mail server
       service: "gmail",
@@ -39,7 +25,7 @@ exports.invite = async (emails, inviteLink) => {
     const mainOptions = {
       // thiết lập đối tượng, nội dung gửi mail
       from: 'WebCTT2',
-      to: emails.join(','),
+      to: email,
       subject: 'Lời mời tham gia lớp học',
       text: '', //Thường thi mình không dùng cái này thay vào đó mình sử dụng html để dễ edit hơn
       html: content, //Nội dung html mình đã tạo trên kia :))
@@ -51,7 +37,7 @@ exports.invite = async (emails, inviteLink) => {
         // return { message: 'Gửi mail thất bại' }
       } else {
         console.log('success')
-        resolve('Gửi mail thành công')
+        resolve(`Gửi mail thành công tới: ${email}`)
         // return { message: 'Gửi mail thành công' }
       }
     })
