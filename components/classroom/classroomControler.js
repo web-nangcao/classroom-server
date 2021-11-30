@@ -20,22 +20,26 @@ const User = require('../user/User')
 router.get('/', authService.checkToken, async (req, res) => {
   const errorList = []
   let resValue = null
-  const user = await User.findOne({ email: req.authData.userEmail }).populate('classrooms')
+  try {
+    const user = await User.findOne({ email: req.authData.userEmail }).populate('classrooms')
 
-  if (!user) {
-    resValue = {
-      classrooms: [],
+    if (!user) {
+      resValue = {
+        classrooms: [],
+      }
+    } else {
+      resValue = {
+        classrooms: user.classrooms,
+      }
     }
-  } else {
-    resValue = {
-      classrooms: user.classrooms,
-    }
+
+    res.json({
+      errorList: errorList,
+      resValue: resValue,
+    })
+  } catch (error) {
+    res.json(error)
   }
-
-  res.json({
-    errorList: errorList,
-    resValue: resValue,
-  })
 })
 
 // POST -  Create new class
@@ -59,33 +63,37 @@ router.post('/create', authService.checkToken, async (req, res) => {
   const errorList = []
   let resValue = null
 
-  const classroom = await new ClassRoom({
-    className: className,
-    topic: topic,
-    host: host,
-    members: [
-      {
-        email: host,
-        userType: UserType.ADMIN,
-      },
-    ],
-  }).save()
-  const user = await User.findOne({ email: host })
-  if (!user) {
-    errorList.push('/Người dùng không tồn tại')
-  } else {
-    user.classrooms.push(classroom._id)
-    user.save()
-    console.log('Adding new user')
+  try {
+    const classroom = await new ClassRoom({
+      className: className,
+      topic: topic,
+      host: host,
+      members: [
+        {
+          email: host,
+          userType: UserType.ADMIN,
+        },
+      ],
+    }).save()
+    const user = await User.findOne({ email: host })
+    if (!user) {
+      errorList.push('Người dùng không tồn tại')
+    } else {
+      user.classrooms.push(classroom._id)
+      await user.save()
+      console.log('Adding new user')
 
-    resValue = {
-      classroom: classroom,
+      resValue = {
+        classroom: classroom,
+      }
     }
+    await res.json({
+      resValue: resValue,
+      errorList: errorList,
+    })
+  } catch (error) {
+    res.json(error)
   }
-  await res.json({
-    resValue: resValue,
-    errorList: errorList,
-  })
 })
 
 // GET - class detail
@@ -105,23 +113,27 @@ router.get('/get-class-detail/:classroomId', authService.checkToken, async (req,
   const classroomId = req.params.classroomId
   const errorList = []
   let resValue = null
-  if (!authService.isBelongToClass(email, classroomId)) {
-    errorList.push('Bạn không thể truy cập lớp học này')
-  } else {
-    const classroom = await ClassRoom.findOne({ _id: classroomId })
-    if (!classroom) {
-      errorList.push('Classroom Id not found')
+  try {
+    if (!authService.isBelongToClass(email, classroomId)) {
+      errorList.push('Bạn không thể truy cập lớp học này')
     } else {
-      console.log('Get class detail')
-      resValue = {
-        classroom: classroom,
+      const classroom = await ClassRoom.findOne({ _id: classroomId })
+      if (!classroom) {
+        errorList.push('Classroom Id not found')
+      } else {
+        console.log('Get class detail')
+        resValue = {
+          classroom: classroom,
+        }
       }
     }
+    await res.json({
+      errorList: errorList,
+      resValue: resValue,
+    })
+  } catch (error) {
+    res.json(error)
   }
-  await res.json({
-    errorList: errorList,
-    resValue: resValue,
-  })
 })
 
 // Post - Join class by generated link
@@ -145,41 +157,45 @@ router.post('/join-class', authService.checkToken, async (req, res) => {
   const errorList = []
   let resValue = null
 
-  const classroom = await ClassRoom.findOne({ _id: classroomId })
-  if (!classroom) {
-    errorList.push('Lớp học không tồn tại')
-  } else {
-    const user = await User.findOne({ email: email })
-    if (!user) {
-      errorList.push('Tài khoản này không tồn tại')
+  try {
+    const classroom = await ClassRoom.findOne({ _id: classroomId })
+    if (!classroom) {
+      errorList.push('Lớp học không tồn tại')
     } else {
-      if (await authService.isBelongToClass(user.email, classroom._id)) {
-        errorList.push('Đã tham gia lớp học này rồi')
+      const user = await User.findOne({ email: email })
+      if (!user) {
+        errorList.push('Tài khoản này không tồn tại')
       } else {
-        if (userType != UserType.STUDENT && userType != UserType.TEACHER) {
-          errorList.push('UserType không hợp lệ')
+        if (await authService.isBelongToClass(user.email, classroom._id)) {
+          errorList.push('Đã tham gia lớp học này rồi')
         } else {
-          console.log(`${email} tham gia lớp học mới`)
-          classroom.members.push({
-            email: email,
-            userType: userType,
-          })
-          await classroom.save()
+          if (userType != UserType.STUDENT && userType != UserType.TEACHER) {
+            errorList.push('UserType không hợp lệ')
+          } else {
+            console.log(`${email} tham gia lớp học mới`)
+            classroom.members.push({
+              email: email,
+              userType: userType,
+            })
+            await classroom.save()
 
-          user.classrooms.push(classroom._id)
-          await user.save()
-          resValue = {
-            classroom: classroom,
-            user: user,
+            user.classrooms.push(classroom._id)
+            await user.save()
+            resValue = {
+              classroom: classroom,
+              user: user,
+            }
           }
         }
       }
     }
+    res.json({
+      errorList: errorList,
+      resValue: resValue,
+    })
+  } catch (error) {
+    res.json(error)
   }
-  res.json({
-    errorList: errorList,
-    resValue: resValue,
-  })
 })
 
 // Get - Join class by gmail
@@ -195,40 +211,44 @@ router.get('/join-class-gmail', async (req, res) => {
   const errorList = []
   let resValue = null
 
-  const classroom = await ClassRoom.findOne({ _id: classroomId })
-  if (!classroom) {
-    errorList.push('Lớp học không tồn tại')
-  } else {
-    const user = await User.findOne({ email: email })
-    if (!user) {
-      errorList.push('Tài khoản này không tồn tại')
+  try {
+    const classroom = await ClassRoom.findOne({ _id: classroomId })
+    if (!classroom) {
+      errorList.push('Lớp học không tồn tại')
     } else {
-      if (await authService.isBelongToClass(user.email, classroom._id)) {
-        errorList.push('Đã tham gia lớp học này rồi')
+      const user = await User.findOne({ email: email })
+      if (!user) {
+        errorList.push('Tài khoản này không tồn tại')
       } else {
-        if (userType != UserType.STUDENT && userType != UserType.TEACHER) {
-          errorList.push('UserType không hợp lệ')
+        if (await authService.isBelongToClass(user.email, classroom._id)) {
+          errorList.push('Đã tham gia lớp học này rồi')
         } else {
-          console.log(`${email} tham gia lớp học mới`)
-          classroom.members.push({
-            email: email,
-            userType: userType,
-          })
-          await classroom.save()
+          if (userType != UserType.STUDENT && userType != UserType.TEACHER) {
+            errorList.push('UserType không hợp lệ')
+          } else {
+            console.log(`${email} tham gia lớp học mới`)
+            classroom.members.push({
+              email: email,
+              userType: userType,
+            })
+            await classroom.save()
 
-          user.classrooms.push(classroom._id)
-          await user.save()
-          resValue = {
-            message: 'Tham gia lớp học thành công, hãy trở về với ClassRoom'
+            user.classrooms.push(classroom._id)
+            await user.save()
+            resValue = {
+              message: 'Tham gia lớp học thành công, hãy trở về với ClassRoom',
+            }
           }
         }
       }
     }
+    res.json({
+      errorList: errorList,
+      resValue: resValue,
+    })
+  } catch (error) {
+    res.json(error)
   }
-  res.json({
-    errorList: errorList,
-    resValue: resValue,
-  })
 })
 
 // Post - Invite friend by mail
@@ -249,45 +269,38 @@ router.post('/invite-gmail', authService.checkToken, async (req, res) => {
   const { classroomId, inviteEmail, userType } = req.body
   const errorList = []
   let resValue = null
-  const classroom = await ClassRoom.findOne({ _id: classroomId })
-  if (!classroom) {
-    errorList.push('Lớp học không tồn tại')
-  } else {
-    if (!(await authService.isBelongToClass(req.authData.userEmail, classroomId))) {
-      errorList.push('User who create invitation doesnt belong to this class')
+
+  try {
+    const classroom = await ClassRoom.findOne({ _id: classroomId })
+    if (!classroom) {
+      errorList.push('Lớp học không tồn tại')
     } else {
-      const inviteUser = await User.findOne({ email: inviteEmail })
-      if (!inviteUser) {
-        errorList.push('Invite-User không tồn tại')
+      if (!(await authService.isBelongToClass(req.authData.userEmail, classroomId))) {
+        errorList.push('User who create invitation doesnt belong to this class')
       } else {
-        if (userType != UserType.STUDENT && userType != UserType.TEACHER) {
-          errorList.push('User-Type không hợp lệ')
+        const inviteUser = await User.findOne({ email: inviteEmail })
+        if (!inviteUser) {
+          errorList.push('Invite-User không tồn tại')
         } else {
-          const inviteLink = `${process.env.HOSTNAME}/join-class-gmail?classroomId=${classroomId}&email=${inviteEmail}&userType=${userType}}`
-          const message = await mailService.invite(inviteEmail, inviteLink)
-          resValue = {
-            message: message,
+          if (userType != UserType.STUDENT && userType != UserType.TEACHER) {
+            errorList.push('User-Type không hợp lệ')
+          } else {
+            const inviteLink = `${process.env.HOSTNAME}/join-class-gmail?classroomId=${classroomId}&email=${inviteEmail}&userType=${userType}}`
+            const message = await mailService.invite(inviteEmail, inviteLink)
+            resValue = {
+              message: message,
+            }
           }
         }
       }
     }
+    await res.json({
+      errorList: errorList,
+      resValue: resValue,
+    })
+  } catch (error) {
+    res.json(error)
   }
-  await res.json({
-    errorList: errorList,
-    resValue: resValue,
-  })
-})
-
-router.post('/remove', async (req, res) => {
-  ClassRoom.deleteMany({})
-    .then(() => {
-      console.log('Classroom remove completed')
-      res.send('Classroom remove completed')
-    })
-    .catch(() => {
-      console.log('Something go wrong while deleting classrooms')
-      res.send('Something go wrong while deleting classrooms')
-    })
 })
 
 module.exports = router

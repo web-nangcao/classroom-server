@@ -33,7 +33,7 @@ exports.invite = async (email, inviteLink) => {
     transporter.sendMail(mainOptions, function (err, info) {
       if (err) {
         console.error(err)
-        reject('Gửi mail thất bại')
+        reject(err)
         // return { message: 'Gửi mail thất bại' }
       } else {
         console.log('success')
