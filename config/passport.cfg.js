@@ -13,7 +13,7 @@ module.exports = function (passport) {
         console.log('accessToken: ', accessToken)
         const email = profile.emails[0].value
 
-        // Check if user already exists
+      // Check if user already exists
         const currentUser = await User.findOne({ email: email })
         if (currentUser) {
           // User already exists
@@ -26,5 +26,4 @@ module.exports = function (passport) {
       }
     )
   )
-
 }

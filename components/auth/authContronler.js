@@ -13,8 +13,6 @@ router.post(
   }), authService.signToken
 )
 
-
-
 // route to check token with postman.
 // using middleware to check for authorization header
 router.get('/myverify', authService.checkToken, (req, res) => {

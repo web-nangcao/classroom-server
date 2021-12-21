@@ -5,52 +5,35 @@ const router = express.Router()
 const authService = require('../../services/authService')
 const ClassRoom = require('../classroom/ClassRoom')
 const Assignment = require('./Assignment')
+const mongoose = require('mongoose')
 
 // POST get assignment detail
 router.post('/get-detail', authService.checkToken, async (req, res, next) => {
   const { assignmentId } = req.body
   const errorList = []
   let resValue = null
-
   try {
     const assignment = await Assignment.findOne({ _id: assignmentId })
-
     if (!assignment) {
       errorList.push('Assignment ID khong ton tai')
     } else {
-      resValue = assignment
+      if (!authService.isBelongToClass(req.authData.email, assignment.classroomId)) {
+        errorList.push('Học sinh/giáo viên không có quyền xem assignment này')
+      } else {
+        resValue = assignment
+      }
     }
     await res.json({
       errorList: errorList,
       resValue: resValue,
     })
   } catch (error) {
-    res.json(error)
-  }
-})
-
-// POST add new assignment
-router.post('/insert', authService.checkToken, async (req, res, next) => {
-  const { classroomId, assignment } = req.body
-  const errorList = []
-  let resValue = null
-  try {
-    const classroom = await ClassRoom.findOne({ _id: classroomId })
-    if (!classroom) {
-      errorList.push('Classroom ID khong ton tai')
-    } else {
-      const newAssignment = await new Assignment(assignment).save()
-      resValue = newAssignment
-
-      classroom.assignments.push(newAssignment)
-      await classroom.save()
-    }
-    await res.json({
+    console.log('error: ', error)
+    errorList.push(error)
+    res.json({
       errorList: errorList,
       resValue: resValue,
     })
-  } catch (error) {
-    res.json(error)
   }
 })
 
@@ -73,7 +56,7 @@ router.post('/get-list', authService.checkToken, async (req, res, next) => {
   const errorList = []
   let resValue = null
   try {
-    const classroom = await ClassRoom.findOne({ _id: classroomId })
+    const classroom = await ClassRoom.findOne({ _id: classroomId }).populate('assignments')
     if (!classroom) {
       errorList.push('Classroom ID khong ton tai')
     } else {
@@ -84,58 +67,55 @@ router.post('/get-list', authService.checkToken, async (req, res, next) => {
       resValue: resValue,
     })
   } catch (error) {
-    res.json(error)
+    console.log('error: ', error)
+    errorList.push(error)
+    res.json({
+      errorList: errorList,
+      resValue: resValue,
+    })
   }
 })
 
-// POST update assignments by classroomId
-// Api endpoint: <Host>/assignment/update
-// Request header: Bearer <access_token>
-// Request body: {
-//     classroomId: classroomId
-//     assignments: [{
-//         assignment: assignment
-//     }]
-// }
-// Response body: {
-//     errorList: [],
-//     resValue: [{
-//         classroom: classroom
-//     }]
-// }
-router.post('/update', authService.checkToken, async (req, res, next) => {
+// Post UpSert assignment
+router.post('/update', authService.checkToken, async (req, res) => {
   const { classroomId, assignments } = req.body
   const errorList = []
   let resValue = null
   try {
     const classroom = await ClassRoom.findOne({ _id: classroomId })
     if (!classroom) {
-      errorList.push('Classroom khong ton tai')
+      errorList.push(new Error('ClassroomID khong ton tai'))
     } else {
-      assignments.forEach(async (assignment) => {
-        assignment_flag = await Assignment.findOne({ _id: assignment._id })
-        if (!assignment_flag) {
-          await new Assignment(assignment).save()
-        } else {
-          const { name, point, email, classroomId } = assignment
-          assignment_flag.name = name
-          assignment_flag.point = point
-          assignment_flag.email = email
-          assignment_flag.classroomId = classroomId
-          await assignment_flag.save()
+      if (!authService.isAdminOrTeacher(classroomId, req.authData.userEmail)) {
+        errorList.push(new Error('Ban khong co quyen cap nhat assignment'))
+      } else {
+        await Assignment.deleteMany({classroomId: classroomId})
+        classroom.assignments = []
+        // Insert new assignment
+        for (let i = 0; i < assignments.length; i++) {
+          const new_assignment = await new Assignment({
+            name: assignments[i].name,
+            point: assignments[i].point,
+            email: req.authData.userEmail,
+            classroomId: classroomId,
+          }).save()
+          classroom.assignments.push(new_assignment._id)
         }
+        resValue = await classroom.save()
+      }
+      console.log('Chỉnh sửa assignments thành công')
+      await res.json({
+        resValue: resValue,
+        errorList: errorList,
       })
-      classroom.assignments = assignments
-      await classroom.save()
-      resValue = classroom
     }
-
-    await res.json({
+  } catch (error) {
+    console.log('error: ', error)
+    errorList.push(error)
+    res.json({
       errorList: errorList,
       resValue: resValue,
     })
-  } catch (error) {
-    res.json(error)
   }
 })
 

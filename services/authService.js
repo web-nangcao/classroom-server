@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken')
 const User = require('../components/user/User')
+const ClassRoom = require('../components/classroom/ClassRoom')
 
 // Issue Token
 exports.signToken = (req, res) => {
@@ -48,15 +49,51 @@ exports.checkToken = (req, res, next) => {
 }
 
 exports.isBelongToClass = async (email, classroomId) => {
-  return new Promise(async (resolve, reject) => {
-    const user = await User.findOne({ email: email })
-    if (!user) {
-      resolve(false)
-    } else {
-      if (user.classrooms.indexOf(classroomId) == -1) {
-        resolve(false)
-      }
-      resolve(true)
+  const user = await User.findOne({ email: email })
+  if (!user) {
+    return false
+  } else {
+    if (user.classrooms.indexOf(classroomId) == -1) {
+      return false
     }
-  })
+    return true
+  }
 }
+
+exports.isAdminOrTeacher = async (classroomId, email) => {
+  try {
+    const classroom = await ClassRoom.findOne({ _id: classroomId })
+    if (!classroom) {
+      return false
+    }
+    classroom.members.forEach((member) => {
+      if (
+        member.email == email &&
+        (member.userType == UserType.ADMIN || member.userType == UserType.TEACHER)
+      ) {
+        return true
+      }
+    })
+    return false
+  } catch (error) {
+    return false
+  }
+}
+
+// exports.isAdminOrTeacher = async (classroomId, email) => {
+//   return new Promise(async (resolve, reject)=>{
+//     const classroom = await ClassRoom.findOne({ _id: classroomId })
+//     if (!classroom) {
+//       resolve(false)
+//     }
+//     classroom.members.forEach((member) => {
+//       if (
+//         member.email == email &&
+//         (member.userType == UserType.ADMIN || member.userType == UserType.TEACHER)
+//       ) {
+//         resolve(true)
+//       }
+//     })
+//     resolve(false)
+//   })
+// }

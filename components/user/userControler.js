@@ -38,7 +38,12 @@ router.post('/account/manage-profile', authService.checkToken, async (req, res) 
       resValue: resValue,
     })
   } catch (error) {
-    res.json(error)
+    console.log('error: ', error)
+    errorList.push(error)
+    res.json({
+      errorList: errorList,
+      resValue: resValue,
+    })
   }
 })
 

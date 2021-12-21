@@ -23,22 +23,20 @@ router.get('/', authService.checkToken, async (req, res) => {
   try {
     const user = await User.findOne({ email: req.authData.userEmail }).populate('classrooms')
 
-    if (!user) {
-      resValue = {
-        classrooms: [],
-      }
-    } else {
-      resValue = {
-        classrooms: user.classrooms,
-      }
+    resValue = {
+      classrooms: user.classrooms,
     }
-
     res.json({
       errorList: errorList,
       resValue: resValue,
     })
   } catch (error) {
-    res.json(error)
+    console.log('error: ', error)
+    errorList.push(error)
+    res.json({
+      errorList: errorList,
+      resValue: resValue,
+    })
   }
 })
 
@@ -81,18 +79,23 @@ router.post('/create', authService.checkToken, async (req, res) => {
     } else {
       user.classrooms.push(classroom._id)
       await user.save()
-      console.log('Adding new user')
 
       resValue = {
         classroom: classroom,
       }
     }
+    console.log('Them lop hoc thanh cong')
     await res.json({
       resValue: resValue,
       errorList: errorList,
     })
   } catch (error) {
-    res.json(error)
+    console.log('error: ', error)
+    errorList.push(error)
+    res.json({
+      errorList: errorList,
+      resValue: resValue,
+    })
   }
 })
 
@@ -108,7 +111,6 @@ router.post('/create', authService.checkToken, async (req, res) => {
 //   }
 // }
 router.get('/get-class-detail/:classroomId', authService.checkToken, async (req, res) => {
-  console.log('getClass Detail')
   const email = req.authData.userEmail
   const classroomId = req.params.classroomId
   const errorList = []
@@ -117,7 +119,7 @@ router.get('/get-class-detail/:classroomId', authService.checkToken, async (req,
     if (!authService.isBelongToClass(email, classroomId)) {
       errorList.push('Bạn không thể truy cập lớp học này')
     } else {
-      const classroom = await ClassRoom.findOne({ _id: classroomId })
+      const classroom = await ClassRoom.findOne({ _id: classroomId }).populate('assignments')
       if (!classroom) {
         errorList.push('Classroom Id not found')
       } else {
@@ -132,7 +134,12 @@ router.get('/get-class-detail/:classroomId', authService.checkToken, async (req,
       resValue: resValue,
     })
   } catch (error) {
-    res.json(error)
+    console.log('error: ', error)
+    errorList.push(error)
+    res.json({
+      errorList: errorList,
+      resValue: resValue,
+    })
   }
 })
 
@@ -158,7 +165,7 @@ router.post('/join-class', authService.checkToken, async (req, res) => {
   let resValue = null
 
   try {
-    const classroom = await ClassRoom.findOne({ _id: classroomId })
+    const classroom = await ClassRoom.findOne({ _id: classroomId }).populate('assignments')
     if (!classroom) {
       errorList.push('Lớp học không tồn tại')
     } else {
@@ -166,7 +173,7 @@ router.post('/join-class', authService.checkToken, async (req, res) => {
       if (!user) {
         errorList.push('Tài khoản này không tồn tại')
       } else {
-        if (await authService.isBelongToClass(user.email, classroom._id)) {
+        if (authService.isBelongToClass(user.email, classroom._id)) {
           errorList.push('Đã tham gia lớp học này rồi')
         } else {
           if (userType != UserType.STUDENT && userType != UserType.TEACHER) {
@@ -194,7 +201,12 @@ router.post('/join-class', authService.checkToken, async (req, res) => {
       resValue: resValue,
     })
   } catch (error) {
-    res.json(error)
+    console.log('error: ', error)
+    errorList.push(error)
+    res.json({
+      errorList: errorList,
+      resValue: resValue,
+    })
   }
 })
 
@@ -212,7 +224,7 @@ router.get('/join-class-gmail', async (req, res) => {
   let resValue = null
 
   try {
-    const classroom = await ClassRoom.findOne({ _id: classroomId })
+    const classroom = await ClassRoom.findOne({ _id: classroomId }).populate('assignments')
     if (!classroom) {
       errorList.push('Lớp học không tồn tại')
     } else {
@@ -220,7 +232,7 @@ router.get('/join-class-gmail', async (req, res) => {
       if (!user) {
         errorList.push('Tài khoản này không tồn tại')
       } else {
-        if (await authService.isBelongToClass(user.email, classroom._id)) {
+        if (authService.isBelongToClass(user.email, classroom._id)) {
           errorList.push('Đã tham gia lớp học này rồi')
         } else {
           if (userType != UserType.STUDENT && userType != UserType.TEACHER) {
@@ -247,7 +259,12 @@ router.get('/join-class-gmail', async (req, res) => {
       resValue: resValue,
     })
   } catch (error) {
-    res.json(error)
+    console.log('error: ', error)
+    errorList.push(error)
+    res.json({
+      errorList: errorList,
+      resValue: resValue,
+    })
   }
 })
 
@@ -271,11 +288,11 @@ router.post('/invite-gmail', authService.checkToken, async (req, res) => {
   let resValue = null
 
   try {
-    const classroom = await ClassRoom.findOne({ _id: classroomId })
+    const classroom = await ClassRoom.findOne({ _id: classroomId }).populate('assignments')
     if (!classroom) {
       errorList.push('Lớp học không tồn tại')
     } else {
-      if (!(await authService.isBelongToClass(req.authData.userEmail, classroomId))) {
+      if (!authService.isBelongToClass(req.authData.userEmail, classroomId)) {
         errorList.push('User who create invitation doesnt belong to this class')
       } else {
         const inviteUser = await User.findOne({ email: inviteEmail })
@@ -299,7 +316,12 @@ router.post('/invite-gmail', authService.checkToken, async (req, res) => {
       resValue: resValue,
     })
   } catch (error) {
-    res.json(error)
+    console.log('error: ', error)
+    errorList.push(error)
+    res.json({
+      errorList: errorList,
+      resValue: resValue,
+    })
   }
 })
 

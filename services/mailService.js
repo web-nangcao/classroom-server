@@ -42,5 +42,4 @@ exports.invite = async (email, inviteLink) => {
       }
     })
   })
-  
 }

@@ -1,4 +1,5 @@
 const User = require('../user/User')
+const ClassRoom = require('../classroom/ClassRoom')
 const jwt = require('jsonwebtoken')
 const express = require('express')
 const Assignment = require('../assignment/Assignment')
@@ -29,6 +30,12 @@ router.post('/test-get-access-token', async (req, res) => {
   }
 })
 
+// 
+router.get('/getAllUser', async (req, res) => {
+  const users = await User.find({})
+  res.json(users)
+})
+
 // Remove classroom
 router.post('/removeClassroom', async (req, res) => {
   ClassRoom.deleteMany({})
@@ -42,10 +49,7 @@ router.post('/removeClassroom', async (req, res) => {
     })
 })
 
-router.get('/getAllUser', async (req, res) => {
-  const users = await User.find({})
-  res.json(users)
-})
+
 
 // Remove all user
 router.post('/removeUser', async (req, res) => {

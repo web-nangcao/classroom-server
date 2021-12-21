@@ -25,7 +25,10 @@ const ClassroomSchema = mongoose.Schema({
       },
     },
   ],
-  assignments: [],
+  assignments: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Assignment',
+  }]
 })
 
 const ClassRoom = mongoose.model('ClassRoom', ClassroomSchema, 'classrooms')
