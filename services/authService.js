@@ -48,52 +48,46 @@ exports.checkToken = (req, res, next) => {
   }
 }
 
-exports.isBelongToClass = async (email, classroomId) => {
-  const user = await User.findOne({ email: email })
-  if (!user) {
-    return false
-  } else {
-    if (user.classrooms.indexOf(classroomId) == -1) {
-      return false
-    }
-    return true
-  }
-}
-
-exports.isAdminOrTeacher = async (classroomId, email) => {
-  try {
-    const classroom = await ClassRoom.findOne({ _id: classroomId })
-    if (!classroom) {
-      return false
-    }
-    classroom.members.forEach((member) => {
-      if (
-        member.email == email &&
-        (member.userType == UserType.ADMIN || member.userType == UserType.TEACHER)
-      ) {
-        return true
-      }
-    })
-    return false
-  } catch (error) {
-    return false
-  }
-}
-
-// exports.isAdminOrTeacher = async (classroomId, email) => {
+// exports.isBelongToClass = (email, classroomId) => {
 //   return new Promise(async (resolve, reject)=>{
-//     const classroom = await ClassRoom.findOne({ _id: classroomId })
-//     if (!classroom) {
+//     try {
+//       const user = await User.findOne({ email: email })
+//       if (!user) {
+//         resolve(false)
+//       } else {
+//         if (user.classrooms.indexOf(classroomId) == -1) {
+//           resolve(false)
+//         }
+//         resolve(false)
+//       }
+//     } catch (error) {
+//       reject(error)
+//     }
+//   })
+// }
+
+
+
+// exports.isAdminOrTeacher = function isAdminOrTeacher(classroomId, email) {
+//   return new Promise(async(resolve, reject)=>{
+//     try {
+//       const classroom = await ClassRoom.findOne({ _id: classroomId })
+//       if (!classroom) {
+//         resolve(false)
+//       }
+//       classroom.members.forEach((member) => {
+//         console.log(member)
+//         console.log(member.email == email)
+//         console.log(member.userType == 'Admin')
+//         if (member.email == email && ((member.userType == UserType.ADMIN) || (member.userType == UserType.TEACHER))) {
+//           resolve(true)
+//         }
+//       })
+//       resolve(false)
+//     } catch (error) {
+//       console.log('error: ', error)
 //       resolve(false)
 //     }
-//     classroom.members.forEach((member) => {
-//       if (
-//         member.email == email &&
-//         (member.userType == UserType.ADMIN || member.userType == UserType.TEACHER)
-//       ) {
-//         resolve(true)
-//       }
-//     })
-//     resolve(false)
 //   })
+
 // }

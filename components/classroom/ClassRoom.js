@@ -23,6 +23,10 @@ const ClassroomSchema = mongoose.Schema({
       userType: {
         type: String,
       },
+      code: {
+        type: String,
+        default: ''
+      }
     },
   ],
   assignments: [{

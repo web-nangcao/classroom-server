@@ -1,15 +1,56 @@
 const express = require('express')
 
 const router = express.Router()
-
 const authService = require('../../services/authService')
 const ClassRoom = require('../classroom/ClassRoom')
 const Assignment = require('./Assignment')
-const mongoose = require('mongoose')
+const User = require('../user/User')
 
-// POST get assignment detail
-router.post('/get-detail', authService.checkToken, async (req, res, next) => {
-  const { assignmentId } = req.body
+function isBelongToClass (email, classroomId) {
+  return new Promise(async (resolve, reject)=>{
+    try {
+      const user = await User.findOne({ email: email })
+      if (!user) {
+        resolve(false)
+      } else {
+        if (user.classrooms.indexOf(classroomId) == -1) {
+          resolve(false)
+        }
+        resolve(true)
+      }
+    } catch (error) {
+      reject(error)
+    }
+  })
+}
+
+function isAdminOrTeacher(classroomId, email) {
+  return new Promise(async(resolve, reject)=>{
+    try {
+      const classroom = await ClassRoom.findOne({ _id: classroomId })
+      if (!classroom) {
+        resolve(false)
+      }
+      classroom.members.forEach((member) => {
+        console.log(member)
+        console.log(member.email == email)
+        console.log(member.userType == 'Admin')
+        if (member.email == email && ((member.userType == UserType.ADMIN) || (member.userType == UserType.TEACHER))) {
+          resolve(true)
+        }
+      })
+      resolve(false)
+    } catch (error) {
+      console.log('error: ', error)
+      resolve(false)
+    }
+  })
+}
+
+
+// GET get assignment detail
+router.get('/get-detail/:assignmentId', authService.checkToken, async (req, res, next) => {
+  const assignmentId  = req.params.assignmentId
   const errorList = []
   let resValue = null
   try {
@@ -17,13 +58,13 @@ router.post('/get-detail', authService.checkToken, async (req, res, next) => {
     if (!assignment) {
       errorList.push('Assignment ID khong ton tai')
     } else {
-      if (!authService.isBelongToClass(req.authData.email, assignment.classroomId)) {
-        errorList.push('Học sinh/giáo viên không có quyền xem assignment này')
+      if (!await isBelongToClass(req.authData.userEmail, assignment.classroomId)) {
+        errorList.push('May khong co quyen xem assignment nay')
       } else {
         resValue = assignment
       }
     }
-    await res.json({
+    res.json({
       errorList: errorList,
       resValue: resValue,
     })
@@ -62,7 +103,7 @@ router.post('/get-list', authService.checkToken, async (req, res, next) => {
     } else {
       resValue = classroom.assignments
     }
-    await res.json({
+    res.json({
       errorList: errorList,
       resValue: resValue,
     })
@@ -86,7 +127,7 @@ router.post('/update', authService.checkToken, async (req, res) => {
     if (!classroom) {
       errorList.push(new Error('ClassroomID khong ton tai'))
     } else {
-      if (!authService.isAdminOrTeacher(classroomId, req.authData.userEmail)) {
+      if (!await isAdminOrTeacher(classroomId, req.authData.userEmail)) {
         errorList.push(new Error('Ban khong co quyen cap nhat assignment'))
       } else {
         await Assignment.deleteMany({classroomId: classroomId})
@@ -104,7 +145,7 @@ router.post('/update', authService.checkToken, async (req, res) => {
         resValue = await classroom.save()
       }
       console.log('Chỉnh sửa assignments thành công')
-      await res.json({
+      res.json({
         resValue: resValue,
         errorList: errorList,
       })

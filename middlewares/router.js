@@ -9,7 +9,7 @@ module.exports = function(app) {
     app.use('/user', user)
     app.use('/auth', auth)
     app.use('/assignment', assignment)
-    app.use('/')
+    app.use('/', classroom)
     app.use('/classroom-grade', classroomGrade)
 
     // Testing dev
