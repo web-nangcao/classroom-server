@@ -5,6 +5,7 @@ const authService = require('../../services/authService')
 const mailService = require('../../services/mailService')
 const UserType = require('../../components/user/UserType')
 const User = require('../user/User')
+const ClassroomGrade = require('../classroom-grade/ClassroomGrade')
 
 function isBelongToClass (email, classroomId) {
   return new Promise(async (resolve, reject)=>{
@@ -23,6 +24,41 @@ function isBelongToClass (email, classroomId) {
     }
   })
 }
+
+function isCodeAvailable(classroomId, code, email) {
+  return new Promise(async (resolve, reject)=>{
+    try {
+      const classroom = await ClassRoom.findOne({_id: classroomId})
+      classroom.members.forEach(member => {
+        if (member.code == code && member.email != email) {
+          resolve(false)
+        }
+      });
+      resolve(true)
+    } catch (error) {
+      reject(error)
+    }
+  })
+}
+
+function assignCode(classroomId, code, email) {
+  return new Promise(async (resolve, reject)=>{
+    try {
+      const classroom = await ClassRoom.findOne({_id: classroomId})
+      for(let i = 0; i < classroom.members.length; i++) {
+        if(classroom.members[i]['email'] == email) {
+          classroom.members[i]['code'] = code
+          break;
+        }
+      }
+      await classroom.save()
+      resolve(classroom)
+    } catch (error) {
+      reject(error)
+    }
+  })
+}
+
 
 // Get list classes
 router.get('/', authService.checkToken, async (req, res) => {
@@ -273,6 +309,72 @@ router.post('/invite-gmail', authService.checkToken, async (req, res) => {
       errorList: errorList,
       resValue: resValue,
     })
+  }
+})
+
+// Join class by code
+router.post('/join-class-code', authService.checkToken, async(req, res)=>{
+  const {code} = req.body
+  console.log(req.authData)
+  console.log(code)
+  try {
+    const classroom = await ClassRoom.findOne({_id: code})
+    if (!classroom) {
+      res.json("Classroom khong ton tai")
+    } else {
+      if (await isBelongToClass(req.authData.userEmail, code)) {
+        res.json('Da tham gia lop hoc nay roi')
+      } else {
+        classroom.members.push({
+          email: req.authData.userEmail,
+          userType: UserType.STUDENT
+        })
+        await classroom.save()
+
+        const user = await User.findOne({email: req.authData.userEmail})
+        user.classrooms.push(classroom._id)
+        await user.save()
+
+        res.json({
+          classroom: classroom,
+          user: user,
+          message: 'Tham gia lop hoc thanh cong'
+        })
+      }
+    }
+  } catch (error) {
+    console.log('Error as join-class-code', error)
+    res.json(error)
+  }
+})
+
+// Mapping student code
+router.post('/mapping-student-code', authService.checkToken, async(req, res)=>{
+  const {code, classroomId} = req.body
+  try {
+    const classroom = await ClassRoom.findOne({classroomId})
+    if (!classroom) {
+      res.json("Lop hop khong ton tai")
+    } else {
+      const classroom_grade = await ClassroomGrade.findOne({classroomId: classroomId})
+      if (!classroom_grade || classroom_grade.studentCodes.indexOf(code) == -1) {
+        res.json('Khong ton tai mssv nay')
+      } else {
+        if (!await isCodeAvailable(classroomId, code, req.authData.userEmail)) {
+          res.json('Code nay da duoc su dung roi hihi')
+        } else {
+          // Classroom da duoc update trong assignCode
+          const new_classroom = await assignCode(classroomId, code, req.authData.userEmail)
+          res.json({
+            classroom: new_classroom,
+            message: 'Mapping mssv thanh cong'
+          })
+        }
+      }
+    }
+  } catch (error) {
+    console.log('Error as mapping-student-code', error)
+    res.json(error)
   }
 })
 

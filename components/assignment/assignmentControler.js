@@ -5,9 +5,10 @@ const authService = require('../../services/authService')
 const ClassRoom = require('../classroom/ClassRoom')
 const Assignment = require('./Assignment')
 const User = require('../user/User')
+const UserType = require('../user/UserType')
 
-function isBelongToClass (email, classroomId) {
-  return new Promise(async (resolve, reject)=>{
+function isBelongToClass(email, classroomId) {
+  return new Promise(async (resolve, reject) => {
     try {
       const user = await User.findOne({ email: email })
       if (!user) {
@@ -25,17 +26,17 @@ function isBelongToClass (email, classroomId) {
 }
 
 function isAdminOrTeacher(classroomId, email) {
-  return new Promise(async(resolve, reject)=>{
+  return new Promise(async (resolve, reject) => {
     try {
       const classroom = await ClassRoom.findOne({ _id: classroomId })
       if (!classroom) {
         resolve(false)
       }
       classroom.members.forEach((member) => {
-        console.log(member)
-        console.log(member.email == email)
-        console.log(member.userType == 'Admin')
-        if (member.email == email && ((member.userType == UserType.ADMIN) || (member.userType == UserType.TEACHER))) {
+        if (
+          member.email == email &&
+          (member.userType == UserType.ADMIN || member.userType == UserType.TEACHER)
+        ) {
           resolve(true)
         }
       })
@@ -47,10 +48,9 @@ function isAdminOrTeacher(classroomId, email) {
   })
 }
 
-
 // GET get assignment detail
 router.get('/get-detail/:assignmentId', authService.checkToken, async (req, res, next) => {
-  const assignmentId  = req.params.assignmentId
+  const assignmentId = req.params.assignmentId
   const errorList = []
   let resValue = null
   try {
@@ -58,7 +58,7 @@ router.get('/get-detail/:assignmentId', authService.checkToken, async (req, res,
     if (!assignment) {
       errorList.push('Assignment ID khong ton tai')
     } else {
-      if (!await isBelongToClass(req.authData.userEmail, assignment.classroomId)) {
+      if (!(await isBelongToClass(req.authData.userEmail, assignment.classroomId))) {
         errorList.push('May khong co quyen xem assignment nay')
       } else {
         resValue = assignment
@@ -125,30 +125,45 @@ router.post('/update', authService.checkToken, async (req, res) => {
   try {
     const classroom = await ClassRoom.findOne({ _id: classroomId })
     if (!classroom) {
-      errorList.push(new Error('ClassroomID khong ton tai'))
+      errorList.push('ClassroomID khong ton tai')
     } else {
-      if (!await isAdminOrTeacher(classroomId, req.authData.userEmail)) {
-        errorList.push(new Error('Ban khong co quyen cap nhat assignment'))
+      if (!(await isAdminOrTeacher(classroomId, req.authData.userEmail))) {
+        errorList.push('Ban khong co quyen cap nhat assignment')
       } else {
-        await Assignment.deleteMany({classroomId: classroomId})
-        classroom.assignments = []
-        // Insert new assignment
+        const tmp_assignments = {}
+        let flag = false
         for (let i = 0; i < assignments.length; i++) {
-          const new_assignment = await new Assignment({
-            name: assignments[i].name,
-            point: assignments[i].point,
-            email: req.authData.userEmail,
-            classroomId: classroomId,
-          }).save()
-          classroom.assignments.push(new_assignment._id)
+          if (tmp_assignments[`${assignments[i].name}`] == undefined) {
+            tmp_assignments[`${assignments[i].name}`] = 1
+          } else {
+            flag = true
+          }
         }
-        resValue = await classroom.save()
+        if (flag == true) {
+          res.json('Khong duoc dat assignment trung ten')
+        } else {
+          await Assignment.deleteMany({ classroomId: classroomId })
+          console.log('assignments: ', assignments)
+          const new_assignments = []
+          // Insert new assignment
+          for (let i = 0; i < assignments.length; i++) {
+            const new_assignment = await new Assignment({
+              name: assignments[i].name,
+              point: assignments[i].point,
+              email: req.authData.userEmail,
+              classroomId: classroom._id,
+            }).save()
+            console.log('assignment: ', new_assignment)
+            new_assignments.push(new_assignment._id)
+          }
+          classroom.assignments = new_assignments
+          resValue = await classroom.save()
+          res.json({
+            errorList: errorList,
+            resValue: resValue
+          })
+        }
       }
-      console.log('Chỉnh sửa assignments thành công')
-      res.json({
-        resValue: resValue,
-        errorList: errorList,
-      })
     }
   } catch (error) {
     console.log('error: ', error)

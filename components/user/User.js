@@ -6,9 +6,13 @@ const UserSchema = mongoose.Schema({
     required: true,
     unique: true
   },
+  password: {
+    type: String,
+    default: ''
+  },
   googleId: {
     type: String,
-    required: true
+    default: ''
   },
   code: {
     type: String,
@@ -22,12 +26,19 @@ const UserSchema = mongoose.Schema({
     type: String,
     default: ''
   },
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+  isLock: {
+    type: Boolean,
+    default: false
+  },
   classrooms: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'ClassRoom'
   }]
 })
-
 
 const User = mongoose.model("User", UserSchema, "users")
 

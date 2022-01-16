@@ -10,22 +10,30 @@ const ClassroomGrade = require('./ClassroomGrade')
 const GradeWriteType = require('./GradeWriteType')
 const formidable = require('formidable')
 const Assignment = require('../assignment/Assignment')
-const e = require('express')
+const User = require('../user/User')
 
-async function createClassroomGrade(classroomId) {
+async function updateOrCreateClassroomGrade(classroomId) {
   return new Promise(async (resolve, reject) => {
     try {
       const classroom = await ClassRoom.findOne({ _id: classroomId }).populate('assignments')
       const assignments = []
       classroom.assignments.forEach((assignment) => {
-        assignments.push({ name: assignment.name, is_finallized: false })
+        assignments.push({ assignmentId: assignment._id, is_finallized: false })
       })
-      await ClassroomGrade.deleteMany({ classroomId: classroomId })
-      const classroom_grade = await new ClassroomGrade({
-        classroomId: classroomId,
-        assignments: assignments,
-      }).save()
-      resolve(classroom_grade)
+      const classroom_grade = await ClassroomGrade.findOne({classroomId: classroomId})
+      if (!classroom_grade) {
+        const new_classroom_grade = await new ClassroomGrade({
+          classroomId: classroomId,
+          assignments: assignments,
+        }).save()
+        const tmp = await ClassroomGrade.findOne({_id: new_classroom_grade._id}).populate('assignments.assignmentId')
+        resolve(tmp)
+      } else {
+        classroom_grade.assignments = assignments
+        await classroom_grade.save()
+        const tmp = await ClassroomGrade.findOne({_id: classroom_grade._id}).populate('assignments.assignmentId')
+        resolve(tmp)
+      }
     } catch (error) {
       reject(error)
     }
@@ -83,7 +91,7 @@ async function export_grade_csv(type, classroomId, assignmentName) {
           break
         }
         case GradeWriteType.DOWNLOAD_STUDENT_GRADE_BOARD: {
-          const classroom_grade = await ClassroomGrade.findOne({ classroomId: classroomId })
+          const classroom_grade = await updateOrCreateClassroomGrade(classroomId)
           header = [
             {
               id: 'code',
@@ -96,8 +104,8 @@ async function export_grade_csv(type, classroomId, assignmentName) {
           ]
           classroom_grade.assignments.forEach((assignment) => {
             header.push({
-              id: assignment.name,
-              title: assignment.name,
+              id: assignment.assignmentId.name,
+              title: assignment.assignmentId.name,
             })
           })
           path = `public/classroom-grade/${classroomId}/student_grade_board.csv`
@@ -113,7 +121,7 @@ async function export_grade_csv(type, classroomId, assignmentName) {
           break
         }
         case GradeWriteType.DOWNLOAD_STUDENT_SPEC_GRADE: {
-          const classroom_grade = await ClassroomGrade.findOne({ classroomId: classroomId })
+          const classroom_grade = await updateOrCreateClassroomGrade(classroomId)
           header = [
             {
               id: 'code',
@@ -142,6 +150,45 @@ async function export_grade_csv(type, classroomId, assignmentName) {
         }
       }
       resolve(url)
+    } catch (error) {
+      reject(error)
+    }
+  })
+}
+
+async function getStudentCodeByEmail(classroomId, email) {
+  return new Promise(async(resolve, reject)=>{
+    const classroom = await ClassRoom.findOne({_id: classroomId})
+    if (!classroom) {
+      reject(new Error('Lop hoc khong ton tai'))
+    } else {
+      const user = await User.findOne({email: email})
+      if (user.classrooms.indexOf(classroomId) == -1) {
+        reject(new Error('Hoc sinh chua tham gia lop hoc nay'))
+      } else {
+        classroom.members.forEach(member => {
+          if (member.email == email) {
+            resolve(member.code)
+          }
+        });
+        reject(null)
+      }
+    }
+  })
+} 
+
+function isBelongToClass (email, classroomId) {
+  return new Promise(async (resolve, reject)=>{
+    try {
+      const user = await User.findOne({ email: email })
+      if (!user) {
+        resolve(false)
+      } else {
+        if (user.classrooms.indexOf(classroomId) == -1) {
+          resolve(false)
+        }
+        resolve(true)
+      }
     } catch (error) {
       reject(error)
     }
@@ -216,18 +263,21 @@ router.post('/upload-student-list/:classroomId', authService.checkToken, async (
               data.push(row)
             })
             .on('end', async () => {
-              const classroom_grade = await createClassroomGrade(classroomId)
+              const classroom_grade = await updateOrCreateClassroomGrade(classroomId)
               const grades = []
+              const studentCodes = []
               data.forEach((row) => {
                 const grade = {}
                 grade['code'] = row['Mssv']
                 grade['name'] = row['Họ và tên']
                 classroom_grade.assignments.forEach((assignment) => {
-                  grade[`${assignment.name}`] = 0
+                  grade[`${assignment.assignmentId.name}`] = 0
                 })
                 grades.push(grade)
+                studentCodes.push(row['Mssv'])
               })
               classroom_grade.grades = grades
+              classroom_grade.studentCodes = studentCodes
               await classroom_grade.save()
 
               resValue = classroom_grade
@@ -267,9 +317,9 @@ router.get(
           errorList: errorList,
         })
       } else {
-        const classroom_grade = await ClassroomGrade.findOne({ classroomId: classroomId })
+        const classroom_grade = await updateOrCreateClassroomGrade(classroomId)
         if (!classroom_grade) {
-          classroom_grade = await createClassroomGrade(classroomId)
+          classroom_grade = await updateOrCreateClassroomGrade(classroomId)
         }
         const url = await export_grade_csv(
           GradeWriteType.DOWNLOAD_STUDENT_GRADE_BOARD,
@@ -307,7 +357,7 @@ router.post(
       const classroom = await ClassRoom.findOne({ _id: classroomId })
       if (!classroom) {
         errorList.push(new Erorr('Lop hoc khong ton tai'))
-        res.json(new Error('Classroom khong ton tai'))
+        res.json('Classroom khong ton tai')
       } else {
         const form_data = new formidable.IncomingForm()
         form_data.parse(req, async (err, fields, files) => {
@@ -329,16 +379,18 @@ router.post(
                 data.push(row)
               })
               .on('end', async () => {
-                const classroom_grade = await createClassroomGrade(classroomId)
+                const classroom_grade = await updateOrCreateClassroomGrade(classroomId)
                 const grades = []
+                const studentCodes = []
                 data.forEach((row) => {
                   const grade = {}
                   grade['code'] = row['Mssv']
                   grade['name'] = row['Họ và tên']
                   classroom_grade.assignments.forEach((assignment) => {
-                    grade[`${assignment.name}`] = row[`${assignment.name}`]
+                    grade[`${assignment.assignmentId.name}`] = row[`${assignment.assignmentId.name}`]
                   })
                   grades.push(grade)
+                  studentCodes.push(row['Mssv'])
                 })
                 classroom_grade.grades = grades
                 await classroom_grade.save()
@@ -384,11 +436,11 @@ router.get(
           errorList.push(`AssignmentId: ${assignemntId} khong thuoc ${classroomId}`)
           res.json({ errorList: errorList })
         } else if (!assignment) {
-          res.json(new Error('AssignmentId khong ton tai'))
+          res.json('AssignmentId khong ton tai')
         } else {
-          const classroom_grade = await ClassroomGrade.findOne({ classroomId: classroomId })
+          const classroom_grade = await updateOrCreateClassroomGrade(classroomId)
           if (!classroom_grade) {
-            classroom_grade = await createClassroomGrade(classroomId)
+            classroom_grade = await updateOrCreateClassroomGrade(classroomId)
           }
           const url = await export_grade_csv(
             GradeWriteType.DOWNLOAD_STUDENT_SPEC_GRADE,
@@ -430,7 +482,7 @@ router.post(
         errorList.push(new Erorr('Lop hoc khong ton tai'))
         res.json({errorList: errorList})
       } else if (!assignment) {
-        res.json(new Error('Assignment khong ton tai'))
+        res.json('Assignment khong ton tai')
       } else {
         const form_data = new formidable.IncomingForm()
         form_data.parse(req, async (err, fields, files) => {
@@ -452,9 +504,9 @@ router.post(
                 data.push(row)
               })
               .on('end', async () => {
-                const classroom_grade = await ClassroomGrade.findOne({classroomId: classroomId})
+                const classroom_grade = await updateOrCreateClassroomGrade(classroomId)
                 if (!classroom_grade) {
-                  res.json(new Error('Classroom_grade khong ton tai'))
+                  res.json('Classroom_grade khong ton tai')
                 } else {
                   const spec_grades = {}
                   data.forEach((row) => {
@@ -500,16 +552,114 @@ router.get('/classroom-grade-detail/:classroomId', authService.checkToken, async
   const {classroomId} = req.params
   const classroom = await ClassRoom.findOne({_id: classroomId})
   if (!classroom) {
-    res.json(new Error('ClassroomId khong ton tai'))
+    res.json('ClassroomId khong ton tai')
   } else {
-    const classroom_grade = await ClassroomGrade.findOne({classroomId: classroomId})
+    const classroom_grade = await updateOrCreateClassroomGrade(classroomId)
     if (!classroom_grade) {
-      res.json(new Error('Classroom_grade khong ton tai'))
+      res.json('Classroom_grade khong ton tai')
     } else {
       const resValue = classroom_grade
       res.json({resValue: resValue})
     }
   }
 })
+
+// Student view grades
+router.post('/student-view-grades', authService.checkToken, async(req, res, next)=>{
+  const {classroomId} = req.body
+  try {
+    const classroom = await ClassRoom.findOne({_id: classroomId})
+    if (!await isBelongToClass(req.authData.userEmail, classroomId)) {
+      res.json('Ban khong thuoc lop nay')
+    } else {
+      const classroom_grade = await updateOrCreateClassroomGrade(classroomId)
+      if (!classroom_grade) {
+        res.json('Chua co diem')
+      } else {
+        const code = await getStudentCodeByEmail(classroomId, req.authData.userEmail)
+        if (code == null) {
+          res.json('Chua mapping mssv')
+        } else {
+          console.log('code: ', code)
+          // console.log('classroom_grade: ', classroom_grade)
+
+          let flag = false 
+          const resValue = {}
+          for(let i = 0; i < classroom_grade.grades.length; i++) {
+            if (classroom_grade.grades[i].code == code) {
+              resValue['grade'] = classroom_grade.grades[i]
+              resValue['user'] = await User.findOne({email: req.authData.userEmail})
+              flag = true
+              break;
+            }
+          }
+          if (flag) {
+            res.json(resValue)
+          } else {
+            res.json('Khong tim thay diem')
+          }
+        }
+      }
+    } 
+  } catch (error) {
+    console.log('error as student-view-grades', err)
+    res.json(error)
+  }
+})
+
+// Student view spec grade
+router.post('/student-view-spec-grade', authService.checkToken, async(req, res)=>{
+  const {classroomId, assignmentId} = req.body
+  try {
+    const classroom = await ClassRoom.findOne({_id: classroomId})
+    if (!classroom) {
+      res.json('Classroom khong ton tai')
+    } else if (classroom.assignments.indexOf(assignmentId) == -1) {
+      res.json('Assignment khong thuoc lop hoc')
+    } else {
+      const assignment = await Assignment.findOne({_id: assignmentId}) 
+      if (!assignment) {
+        res.json('assignment khong ton tai')
+      } else {
+        const classroom_grade = await updateOrCreateClassroomGrade(classroomId)
+        let flag = false
+        classroom_grade.assignments.forEach(element => {
+          if (element.assignmentId._id == assignmentId && element.is_finallized == false) {
+            flag = true
+          }
+        });
+        if (flag == true) {
+          res.json('Diem nay chua finalized')
+        } else {
+          const code = await getStudentCodeByEmail(classroomId, email)
+          if (code == null) {
+            res.json('Hoc sinh chua mapping mssv')
+          } else {
+            let point = null
+            classroom_grade.grades.forEach(grade =>{
+              if (grade.code == code) {
+                point = grade[`${assignment.name}`]
+              }
+            })
+            res.json({
+              assignment: assignment,
+              point: point
+            })
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.log('error as student-view-grade: ', error)
+    res.json(error)
+  }
+})
+
+// Teacher mark assignment as finalized
+// router.post('/mark-assignment-finalized', authService.checkToken, async(req, res)=>{
+//   const {classroomId, assignmentId} = req.body
+
+// })
+
 
 module.exports = router

@@ -17,11 +17,9 @@ const AssignmentSchema = mongoose.Schema({
     required: true,
   },
   classroomId: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: mongoose.Types.ObjectId,
   },
 })
-
-
 
 const Assignment = mongoose.model('Assignment', AssignmentSchema, 'assignments')
 
