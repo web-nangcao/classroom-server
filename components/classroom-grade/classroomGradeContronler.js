@@ -431,7 +431,7 @@ router.get(
         res.json({ errorList: errorList })
       } else {
         const index = classroom.assignments.indexOf(assignmentId)
-        const assignment = await Assginment.findOne({ assignemntId: assignmentId })
+        const assignment = await Assginment.findOne({ _id: assignmentId })
         if (index == -1) {
           errorList.push(`AssignmentId: ${assignemntId} khong thuoc ${classroomId}`)
           res.json({ errorList: errorList })
@@ -656,10 +656,10 @@ router.post('/student-view-spec-grade', authService.checkToken, async(req, res)=
 })
 
 // Teacher mark assignment as finalized
-// router.post('/mark-assignment-finalized', authService.checkToken, async(req, res)=>{
-//   const {classroomId, assignmentId} = req.body
+router.post('/mark-assignment-finalized', authService.checkToken, async(req, res)=>{
+  const {classroomId, assignmentId} = req.body
 
-// })
+})
 
 
 module.exports = router
