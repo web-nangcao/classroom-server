@@ -110,11 +110,11 @@ router.post('/create', authService.checkToken, async (req, res) => {
       user.classrooms.push(classroom._id)
       await user.save()
 
+      console.log('Them lop hoc thanh cong')
       resValue = {
         classroom: classroom,
       }
     }
-    console.log('Them lop hoc thanh cong')
     res.json({
       resValue: resValue,
       errorList: errorList,

@@ -23,7 +23,7 @@ router.post('/account/manage-profile', authService.checkToken, async (req, res) 
         user: user,
       }
     }
-    await res.json({
+    res.json({
       errorList: errorList,
       resValue: resValue,
     })

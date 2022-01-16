@@ -11,6 +11,7 @@ const GradeWriteType = require('./GradeWriteType')
 const formidable = require('formidable')
 const Assignment = require('../assignment/Assignment')
 const User = require('../user/User')
+const UserType = require('../user/UserType')
 
 async function updateOrCreateClassroomGrade(classroomId) {
   return new Promise(async (resolve, reject) => {
@@ -176,6 +177,29 @@ async function getStudentCodeByEmail(classroomId, email) {
     }
   })
 } 
+
+function isAdminOrTeacher(classroomId, email) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const classroom = await ClassRoom.findOne({ _id: classroomId })
+      if (!classroom) {
+        resolve(false)
+      }
+      classroom.members.forEach((member) => {
+        if (
+          member.email == email &&
+          (member.userType == UserType.ADMIN || member.userType == UserType.TEACHER)
+        ) {
+          resolve(true)
+        }
+      })
+      resolve(false)
+    } catch (error) {
+      console.log('error: ', error)
+      reject(error)
+    }
+  })
+}
 
 function isBelongToClass (email, classroomId) {
   return new Promise(async (resolve, reject)=>{
@@ -433,7 +457,7 @@ router.get(
         const index = classroom.assignments.indexOf(assignmentId)
         const assignment = await Assginment.findOne({ _id: assignmentId })
         if (index == -1) {
-          errorList.push(`AssignmentId: ${assignemntId} khong thuoc ${classroomId}`)
+          errorList.push(`AssignmentId: ${assignmentId} khong thuoc ${classroomId}`)
           res.json({ errorList: errorList })
         } else if (!assignment) {
           res.json('AssignmentId khong ton tai')
@@ -656,10 +680,43 @@ router.post('/student-view-spec-grade', authService.checkToken, async(req, res)=
 })
 
 // Teacher mark assignment as finalized
-router.post('/mark-assignment-finalized', authService.checkToken, async(req, res)=>{
-  const {classroomId, assignmentId} = req.body
-
+router.post('/mark-assignment-finallized', authService.checkToken, async(req, res)=>{
+  const {classroomId, assignmentId, is_finallized} = req.body
+  try {
+    const classroom = await ClassRoom.findOne({_id: classroomId})
+    if (!classroomId) {
+      res.json('Classroom khong ton tai')
+    } else {
+      const assignment = await Assignment.findOne({_id: assignmentId})
+      if (!assignment) {
+        res.json('Assignment khong ton tai')
+      } else {
+        if(classroom.assignments.indexOf(assignmentId) == -1) {
+          res.json('Assignment khong thuoc classroom')
+        } else {
+          if (!await isAdminOrTeacher(classroomId, req.authData.userEmail)) {
+            res.json('Ban khong co quyen thuc hien function nay')
+          } else {
+            const classroom_grade = await updateOrCreateClassroomGrade(classroomId)
+            const assignments = classroom_grade.assignments
+            assignments.forEach(assignment=>{
+              if(assignment.assignmentId._id == assignmentId) {
+                assignment.is_finallized = is_finallized
+              }
+            })
+            classroom_grade.assignments = assignments
+            await classroom_grade.save()
+            res.json(classroom_grade)
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.log('error as mark-assignment-finallized', error)
+    res.json(error)
+  }
 })
+
 
 
 module.exports = router

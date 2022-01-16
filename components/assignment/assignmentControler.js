@@ -6,6 +6,7 @@ const ClassRoom = require('../classroom/ClassRoom')
 const Assignment = require('./Assignment')
 const User = require('../user/User')
 const UserType = require('../user/UserType')
+const StudentReview = require('../student-review/StudentReview')
 
 function isBelongToClass(email, classroomId) {
   return new Promise(async (resolve, reject) => {
@@ -43,7 +44,7 @@ function isAdminOrTeacher(classroomId, email) {
       resolve(false)
     } catch (error) {
       console.log('error: ', error)
-      resolve(false)
+      reject(error)
     }
   })
 }
@@ -79,19 +80,6 @@ router.get('/get-detail/:assignmentId', authService.checkToken, async (req, res,
 })
 
 // POST assignments list by classroomId
-// Api endpoint: <HOST>/assignment/get-list
-// Request header: Bearer <access_token>
-// Request body: {
-//     classroomId: classroomId
-// }
-// Response body: {
-//     errorList: [],
-//     resValue: {
-//         assignments: [{
-//             assignment: assignment
-//         }]
-//     }
-// }
 router.post('/get-list', authService.checkToken, async (req, res, next) => {
   const { classroomId } = req.body
   const errorList = []
@@ -120,15 +108,13 @@ router.post('/get-list', authService.checkToken, async (req, res, next) => {
 // Post UpSert assignment
 router.post('/update', authService.checkToken, async (req, res) => {
   const { classroomId, assignments } = req.body
-  const errorList = []
-  let resValue = null
   try {
     const classroom = await ClassRoom.findOne({ _id: classroomId })
     if (!classroom) {
-      errorList.push('ClassroomID khong ton tai')
+      res.json('Classroom khong ton tai')
     } else {
       if (!(await isAdminOrTeacher(classroomId, req.authData.userEmail))) {
-        errorList.push('Ban khong co quyen cap nhat assignment')
+        res.json('Ban khong co quyen cap nhat assignment')
       } else {
         const tmp_assignments = {}
         let flag = false
@@ -142,36 +128,69 @@ router.post('/update', authService.checkToken, async (req, res) => {
         if (flag == true) {
           res.json('Khong duoc dat assignment trung ten')
         } else {
-          await Assignment.deleteMany({ classroomId: classroomId })
-          console.log('assignments: ', assignments)
-          const new_assignments = []
-          // Insert new assignment
+          const new_assignment_ids = []
           for (let i = 0; i < assignments.length; i++) {
-            const new_assignment = await new Assignment({
-              name: assignments[i].name,
-              point: assignments[i].point,
-              email: req.authData.userEmail,
-              classroomId: classroom._id,
-            }).save()
-            console.log('assignment: ', new_assignment)
-            new_assignments.push(new_assignment._id)
+            new_assignment_ids.push(assignments[i]._id)
           }
-          classroom.assignments = new_assignments
-          resValue = await classroom.save()
-          res.json({
-            errorList: errorList,
-            resValue: resValue
-          })
+          // Delete assignments
+          for (let i = 0; i < classroom.assignments.length; i++) {
+            const assignmentId = classroom.assignments[i].toString()
+            if (new_assignment_ids.indexOf(assignmentId) == -1) {
+              await Assignment.deleteOne({_id: assignmentId})
+              await StudentReview.deleteMany({assignmentId: assignmentId})
+            }
+          } 
+          
+          // UpSert assignments
+          const new_assignment_list = []
+          for (let i = 0; i < assignments.length; i++) {
+            const assignmentId = assignments[i]._id
+            const assignmentPoint = assignments[i].point
+            const assignmentName = assignments[i].name
+            if (!assignmentId) {
+              const new_assignment = await new Assignment({
+                classroomId: classroomId,
+                point: assignmentPoint,
+                name: assignmentName,
+                email: req.authData.userEmail
+              }).save()
+              new_assignment_list.push(new_assignment._id)
+              continue
+            }
+            const assignment = await Assignment.findOne({_id: assignmentId})
+            assignment.point = assignmentPoint
+            assignment.name = assignmentName
+            assignment.email = req.authData.userEmail
+            await assignment.save()
+            new_assignment_list.push(assignment._id)
+          }
+          classroom.assignments = new_assignment_list
+          await classroom.save()
+          res.json(classroom)
+
+          // await Assignment.deleteMany({ classroomId: classroomId })
+          // console.log('assignments: ', assignments)
+          // const new_assignments = []
+          // // Insert new assignment
+          // for (let i = 0; i < assignments.length; i++) {
+          //   const new_assignment = await new Assignment({
+          //     name: assignments[i].name,
+          //     point: assignments[i].point,
+          //     email: req.authData.userEmail,
+          //     classroomId: classroom._id,
+          //   }).save()
+          //   console.log('assignment: ', new_assignment)
+          //   new_assignments.push(new_assignment._id)
+          // }
+          // classroom.assignments = new_assignments
+          // resValue = await classroom.save()
+          // res.json(resValue)
         }
       }
     }
   } catch (error) {
     console.log('error: ', error)
-    errorList.push(error)
-    res.json({
-      errorList: errorList,
-      resValue: resValue,
-    })
+    res.json(error)
   }
 })
 
