@@ -96,9 +96,9 @@ router.post('/local-register', async (req, res) => {
 
 // Renew password
 router.post('/renew-password', authService.checkToken, async (req, res) => {
-  const { email, password } = req.body
+  const { password } = req.body
   try {
-    const user = await User.findOne({ email: email })
+    const user = await User.findOne({ email: req.authData.userEmail })
     if (!user) {
       res.json('Tai khoan khong ton tai')
     } else {

@@ -16,9 +16,12 @@ const UserType = require('../user/UserType')
 async function isAssignmentFinallized(classroomId, assignmentId) {
   return new Promise(async (resolve, reject) => {
     try {
-      const classroom_grade = await ClassroomGrade.findOne({classroomId: classroomId})
+      const classroom_grade = await ClassroomGrade.findOne({ classroomId: classroomId })
       classroom_grade.assignments.forEach((assignment) => {
-        if (assignment.assignmentId.toString() == assignmentId.toString() && assignment.is_finallized == true) {
+        if (
+          assignment.assignmentId.toString() == assignmentId.toString() &&
+          assignment.is_finallized == true
+        ) {
           resolve(true)
         }
       })
@@ -36,20 +39,30 @@ async function updateOrCreateClassroomGrade(classroomId) {
       const assignments = []
       classroom.assignments.forEach(async (assignment) => {
         const is_finallized = await isAssignmentFinallized(classroomId, assignment._id)
-        assignments.push({ assignmentId: assignment._id, is_finallized:  is_finallized})
+        assignments.push({ assignmentId: assignment._id, is_finallized: is_finallized })
       })
       const classroom_grade = await ClassroomGrade.findOne({ classroomId: classroomId })
+      const grades = classroom_grade.grades
+      for (let i = 0; i < grades.length; i++) {
+        for (let j = 0; j < classroom.assignments.length; j++) {
+          if (!grades[i][`${classroom.assignments[j].name}`]) {
+            grades[i][`${classroom.assignments[j].name}`] = 0
+          }
+        }
+      }
       if (!classroom_grade) {
         const new_classroom_grade = await new ClassroomGrade({
           classroomId: classroomId,
           assignments: assignments,
+          grades: grades
         }).save()
         resolve(new_classroom_grade.populate('assignments.assignmentId'))
       } else {
+        
         classroom_grade.assignments = assignments
+        classroom_grade.grades = grades
         await classroom_grade.save()
         resolve(classroom_grade.populate('assignments.assignmentId'))
-
       }
     } catch (error) {
       reject(error)
@@ -283,52 +296,56 @@ router.post('/upload-student-list/:classroomId', authService.checkToken, async (
       errorList.push(new Erorr('Lop hoc khong ton tai'))
       res.json({ errorList: errorList })
     } else {
-      const form_data = new formidable.IncomingForm()
-      form_data.parse(req, async (err, fields, files) => {
-        if (err) {
-          console.log('Error as upload-student-list', err)
-          errorList.push(err)
-          res.json({
-            resValue: resValue,
-            errorList: errorList,
-          })
-        } else {
-          const new_file_name = 'student_list'
-          const path = await save_file(new_file_name, files.file, classroomId)
-
-          data = []
-          fs.createReadStream(path)
-            .pipe(csv_parser({ delimeter: ',' }))
-            .on('data', async (row) => {
-              data.push(row)
+      if (!(await isAdminOrTeacherOfClass(classroomId, req.authData.userEmail))) {
+        res.json('Ban khong phai admin/teacher')
+      } else {
+        const form_data = new formidable.IncomingForm()
+        form_data.parse(req, async (err, fields, files) => {
+          if (err) {
+            console.log('Error as upload-student-list', err)
+            errorList.push(err)
+            res.json({
+              resValue: resValue,
+              errorList: errorList,
             })
-            .on('end', async () => {
-              const classroom_grade = await updateOrCreateClassroomGrade(classroomId)
-              const grades = []
-              const studentCodes = []
-              data.forEach((row) => {
-                const grade = {}
-                grade['code'] = row['Mssv']
-                grade['name'] = row['Họ và tên']
-                classroom_grade.assignments.forEach((assignment) => {
-                  grade[`${assignment.assignmentId.name}`] = 0
+          } else {
+            const new_file_name = 'student_list'
+            const path = await save_file(new_file_name, files.file, classroomId)
+
+            data = []
+            fs.createReadStream(path)
+              .pipe(csv_parser({ delimeter: ',' }))
+              .on('data', async (row) => {
+                data.push(row)
+              })
+              .on('end', async () => {
+                const classroom_grade = await updateOrCreateClassroomGrade(classroomId)
+                const grades = []
+                const studentCodes = []
+                data.forEach((row) => {
+                  const grade = {}
+                  grade['code'] = row['Mssv']
+                  grade['name'] = row['Họ và tên']
+                  classroom_grade.assignments.forEach((assignment) => {
+                    grade[`${assignment.assignmentId.name}`] = 0
+                  })
+                  grades.push(grade)
+                  studentCodes.push(row['Mssv'])
                 })
-                grades.push(grade)
-                studentCodes.push(row['Mssv'])
-              })
-              classroom_grade.grades = grades
-              classroom_grade.studentCodes = studentCodes
-              await classroom_grade.save()
+                classroom_grade.grades = grades
+                classroom_grade.studentCodes = studentCodes
+                await classroom_grade.save()
 
-              resValue = classroom_grade
-              console.log('upload student-list')
-              res.json({
-                resValue: resValue,
-                errorList: errorList,
+                resValue = classroom_grade
+                console.log('upload student-list')
+                res.json({
+                  resValue: resValue,
+                  errorList: errorList,
+                })
               })
-            })
-        }
-      })
+          }
+        })
+      }
     }
   } catch (error) {
     console.log('error as upload-student-list', error)
@@ -399,52 +416,56 @@ router.post(
         errorList.push(new Erorr('Lop hoc khong ton tai'))
         res.json('Classroom khong ton tai')
       } else {
-        const form_data = new formidable.IncomingForm()
-        form_data.parse(req, async (err, fields, files) => {
-          if (err) {
-            console.log('Error as upload-student-grade-board', err)
-            errorList.push(err)
-            res.json({
-              resValue: resValue,
-              errorList: errorList,
-            })
-          } else {
-            const new_file_name = 'student_grade_board'
-            const path = await save_file(new_file_name, files.file, classroomId)
-
-            data = []
-            fs.createReadStream(path)
-              .pipe(csv_parser({ delimeter: ',' }))
-              .on('data', async (row) => {
-                data.push(row)
+        if (!(await isAdminOrTeacherOfClass(classroomId, req.authData.userEmail))) {
+          res.json('Ban khong phai admin/teacher')
+        } else {
+          const form_data = new formidable.IncomingForm()
+          form_data.parse(req, async (err, fields, files) => {
+            if (err) {
+              console.log('Error as upload-student-grade-board', err)
+              errorList.push(err)
+              res.json({
+                resValue: resValue,
+                errorList: errorList,
               })
-              .on('end', async () => {
-                const classroom_grade = await updateOrCreateClassroomGrade(classroomId)
-                const grades = []
-                const studentCodes = []
-                data.forEach((row) => {
-                  const grade = {}
-                  grade['code'] = row['Mssv']
-                  grade['name'] = row['Họ và tên']
-                  classroom_grade.assignments.forEach((assignment) => {
-                    grade[`${assignment.assignmentId.name}`] =
-                      row[`${assignment.assignmentId.name}`]
+            } else {
+              const new_file_name = 'student_grade_board'
+              const path = await save_file(new_file_name, files.file, classroomId)
+
+              data = []
+              fs.createReadStream(path)
+                .pipe(csv_parser({ delimeter: ',' }))
+                .on('data', async (row) => {
+                  data.push(row)
+                })
+                .on('end', async () => {
+                  const classroom_grade = await updateOrCreateClassroomGrade(classroomId)
+                  const grades = []
+                  const studentCodes = []
+                  data.forEach((row) => {
+                    const grade = {}
+                    grade['code'] = row['Mssv']
+                    grade['name'] = row['Họ và tên']
+                    classroom_grade.assignments.forEach((assignment) => {
+                      grade[`${assignment.assignmentId.name}`] =
+                        row[`${assignment.assignmentId.name}`]
+                    })
+                    grades.push(grade)
+                    studentCodes.push(row['Mssv'])
                   })
-                  grades.push(grade)
-                  studentCodes.push(row['Mssv'])
-                })
-                classroom_grade.grades = grades
-                await classroom_grade.save()
+                  classroom_grade.grades = grades
+                  await classroom_grade.save()
 
-                resValue = classroom_grade
-                console.log('upload student-grade-board')
-                res.json({
-                  resValue: resValue,
-                  errorList: errorList,
+                  resValue = classroom_grade
+                  console.log('upload student-grade-board')
+                  res.json({
+                    resValue: resValue,
+                    errorList: errorList,
+                  })
                 })
-              })
-          }
-        })
+            }
+          })
+        }
       }
     } catch (error) {
       console.log('error as upload-student-grade-board', error)
@@ -456,6 +477,38 @@ router.post(
     }
   }
 )
+
+// Upload student-grade-board-ui
+router.post('/upload-student-grade-board-ui', authService.checkToken, async (req, res) => {
+  const { classroomId, grades } = req.body
+  console.log('classroomId: ', classroomId)
+  console.log('type: ', typeof(classroomId))
+  let resValue = null
+  const errorList = []
+  try {
+    const classroom = await ClassRoom.findOne({ _id: classroomId })
+    if (!classroom) {
+      errorList.push(new Erorr('Lop hoc khong ton tai'))
+      res.json('Classroom khong ton tai')
+    } else {
+      if (!(await isAdminOrTeacherOfClass(classroomId, req.authData.userEmail))) {
+        res.json('Ban khong phai admin/teacher')
+      } else {
+        const classroom_grade = await updateOrCreateClassroomGrade(classroomId)
+        classroom_grade.grades = grades
+        await classroom_grade.save()
+        res.json(classroom_grade)
+      }
+    }
+  } catch (error) {
+    console.log('error as upload-student-grade-board', error)
+    errorList.push(error)
+    res.json({
+      resValue: resValue,
+      errorList: errorList,
+    })
+  }
+})
 
 // Download student-spec-grade
 router.get(
@@ -525,57 +578,59 @@ router.post(
       } else if (!assignment) {
         res.json('Assignment khong ton tai')
       } else {
-        const form_data = new formidable.IncomingForm()
-        form_data.parse(req, async (err, fields, files) => {
-          if (err) {
-            console.log('Error as upload-student-spec-grade', err)
-            errorList.push(err)
-            res.json({
-              resValue: resValue,
-              errorList: errorList,
-            })
-          } else {
-            const new_file_name = 'student_spec_grade'
-            const path = await save_file(new_file_name, files.file, classroomId)
-
-            data = []
-            fs.createReadStream(path)
-              .pipe(csv_parser({ delimeter: ',' }))
-              .on('data', async (row) => {
-                data.push(row)
+        if (!(await isAdminOrTeacherOfClass(classroomId, req.authData.userEmail))) {
+          const form_data = new formidable.IncomingForm()
+          form_data.parse(req, async (err, fields, files) => {
+            if (err) {
+              console.log('Error as upload-student-spec-grade', err)
+              errorList.push(err)
+              res.json({
+                resValue: resValue,
+                errorList: errorList,
               })
-              .on('end', async () => {
-                const classroom_grade = await updateOrCreateClassroomGrade(classroomId)
-                if (!classroom_grade) {
-                  res.json('Classroom_grade khong ton tai')
-                } else {
-                  const spec_grades = {}
-                  data.forEach((row) => {
-                    const grade = {}
-                    grade['code'] = row['Mssv']
-                    grade['name'] = row['Họ và tên']
-                    grade[`${assignment.name}`] = row[`${assignment.name}`]
-                    spec_grades[`${grade['code']}`] = grade
-                  })
-                  const grades = []
-                  classroom_grade.grades.forEach((grade) => {
-                    const code = grade['code']
-                    grade[`${assignment.name}`] = spec_grades[code][`${assignment.name}`]
-                    grades.push(grade)
-                  })
-                  classroom_grade.grades = grades
-                  await classroom_grade.save()
+            } else {
+              const new_file_name = 'student_spec_grade'
+              const path = await save_file(new_file_name, files.file, classroomId)
 
-                  resValue = classroom_grade
-                  console.log('upload student-spec-grade')
-                  res.json({
-                    resValue: resValue,
-                    errorList: errorList,
-                  })
-                }
-              })
-          }
-        })
+              data = []
+              fs.createReadStream(path)
+                .pipe(csv_parser({ delimeter: ',' }))
+                .on('data', async (row) => {
+                  data.push(row)
+                })
+                .on('end', async () => {
+                  const classroom_grade = await updateOrCreateClassroomGrade(classroomId)
+                  if (!classroom_grade) {
+                    res.json('Classroom_grade khong ton tai')
+                  } else {
+                    const spec_grades = {}
+                    data.forEach((row) => {
+                      const grade = {}
+                      grade['code'] = row['Mssv']
+                      grade['name'] = row['Họ và tên']
+                      grade[`${assignment.name}`] = row[`${assignment.name}`]
+                      spec_grades[`${grade['code']}`] = grade
+                    })
+                    const grades = []
+                    classroom_grade.grades.forEach((grade) => {
+                      const code = grade['code']
+                      grade[`${assignment.name}`] = spec_grades[code][`${assignment.name}`]
+                      grades.push(grade)
+                    })
+                    classroom_grade.grades = grades
+                    await classroom_grade.save()
+
+                    resValue = classroom_grade
+                    console.log('upload student-spec-grade')
+                    res.json({
+                      resValue: resValue,
+                      errorList: errorList,
+                    })
+                  }
+                })
+            }
+          })
+        }
       }
     } catch (error) {
       console.log('error as upload-student-spec-grade', error)
@@ -635,6 +690,7 @@ router.post('/student-view-grades', authService.checkToken, async (req, res, nex
             }
           }
           if (flag) {
+            resValue['assignments'] = classroom_grade.assignments
             res.json(resValue)
           } else {
             res.json('Khong tim thay diem')
@@ -663,7 +719,7 @@ router.post('/student-view-spec-grade', authService.checkToken, async (req, res)
         res.json('assignment khong ton tai')
       } else {
         const classroom_grade = await updateOrCreateClassroomGrade(classroomId)
-        if (!await isAssignmentFinallized(classroomId, assignmentId)) {
+        if (!(await isAssignmentFinallized(classroomId, assignmentId))) {
           res.json('Diem nay chua finalized')
         } else {
           const code = await getStudentCodeByEmail(classroomId, req.authData.userEmail)

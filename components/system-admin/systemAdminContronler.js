@@ -104,9 +104,9 @@ router.get('/local-active-mail/:email', async (req, res) => {
 
 // Renew password
 router.post('/renew-password', authService.checkToken, async (req, res) => {
-  const { email, password } = req.body
+  const { password } = req.body
   try {
-    const system_admin = await SystemAdmin.findOne({ email: email })
+    const system_admin = await SystemAdmin.findOne({ email: req.authData.userEmail })
     if (!system_admin) {
       res.json('Tai khoan khong ton tai')
     } else {
@@ -209,7 +209,7 @@ router.get('/view-user-list', authService.checkToken, async (req, res) => {
     if (!flag) {
       res.json('system admin khong ton tai')
     } else {
-      const user_list = await User.find({})
+      const user_list = await User.find({}).populate('classrooms')
       res.json(user_list)
     }
   } catch (error) {
