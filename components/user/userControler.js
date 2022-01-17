@@ -79,7 +79,6 @@ router.post('/local-register', async (req, res) => {
         name: name,
         isActive: false,
       }).save()
-
       const activeLink = `${process.env.HOSTNAME}/user/local-active-mail/${email}`
       const message = mailService.activeMail(new_user.email, activeLink)
       res.json({

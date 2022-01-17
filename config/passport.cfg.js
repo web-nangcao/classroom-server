@@ -17,6 +17,11 @@ module.exports = function (passport) {
         // Check if user already exists
         const currentUser = await User.findOne({ email: email })
         if (currentUser) {
+          if (!currentUser.isActive) {
+            return done(null, false)
+          } else if (currentUser.isLock) {
+            return done(null, false)
+          }
           // User already exists
           return done(null, currentUser)
         } else {
@@ -31,28 +36,4 @@ module.exports = function (passport) {
       }
     )
   )
-  // passport.use(
-  //   new LocalStrategy(function (email, password, done) {
-  //     User.findOne({ email: email }, async function (err, user) {
-  //       if (err) {
-  //         return done(err)
-  //       }
-  //       if (!user) {
-  //         return done(null, false)
-  //       }
-  //       const isMatch = await bcrypt.compare(user.password, password)
-  //       if (!isMatch) {
-  //         return done(null, false, {
-  //           message: 'Password khong dung'
-  //         })
-  //       }
-  //       if (!user.isActive) {
-  //         return done(null, false, {
-  //           message: 'Tai khoan chua duoc kich hoat'
-  //         })
-  //       }
-  //       return done(null, user)
-  //     })
-  //   })
-  // )
 }

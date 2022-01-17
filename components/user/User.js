@@ -37,7 +37,11 @@ const UserSchema = mongoose.Schema({
   classrooms: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'ClassRoom'
-  }]
+  }],
+  createdTime: {
+    type: Date,
+    default: () => Date.now()
+  }
 })
 
 const User = mongoose.model("User", UserSchema, "users")

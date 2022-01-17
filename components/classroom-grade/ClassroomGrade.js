@@ -18,40 +18,6 @@ const ClassroomGradeSchema = mongoose.Schema({
       type: String
     }
   ],
-  studentReviews: [
-    {
-      student: {
-        type: Object
-      },
-      code: {
-        type: Object
-      },
-      assignment: {
-        type: String
-      },
-      cur_grade: {
-        type: Number
-      },
-      exp_grade: {
-        type: Number
-      },
-      explain: {
-        type: String
-      }, 
-      comments: [{
-        user: {
-          type: Object
-        },
-        comment: {
-          type: String
-        }
-      }],
-      is_finallized: {
-        type: Boolean,
-        default: false
-      }
-    }
-  ],
   assignments: [
     {
       assignmentId: {

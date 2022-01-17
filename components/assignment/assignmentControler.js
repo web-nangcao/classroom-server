@@ -26,7 +26,7 @@ function isBelongToClass(email, classroomId) {
   })
 }
 
-function isAdminOrTeacher(classroomId, email) {
+function isAdminOrTeacherOfClass(classroomId, email) {
   return new Promise(async (resolve, reject) => {
     try {
       const classroom = await ClassRoom.findOne({ _id: classroomId })
@@ -113,7 +113,7 @@ router.post('/update', authService.checkToken, async (req, res) => {
     if (!classroom) {
       res.json('Classroom khong ton tai')
     } else {
-      if (!(await isAdminOrTeacher(classroomId, req.authData.userEmail))) {
+      if (!(await isAdminOrTeacherOfClass(classroomId, req.authData.userEmail))) {
         res.json('Ban khong co quyen cap nhat assignment')
       } else {
         const tmp_assignments = {}

@@ -6,14 +6,11 @@ const User = require('../user/User')
 const StudentReviewSchema = mongoose.Schema({
   classroomId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Classroom',
+    ref: 'ClassRoom',
   },
   studentId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-  },
-  code: {
-    type: Object,
   },
   assignmentId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -23,6 +20,9 @@ const StudentReviewSchema = mongoose.Schema({
     type: Number,
   },
   exp_grade: {
+    type: Number,
+  },
+  upd_grade: {
     type: Number,
   },
   explain: {
