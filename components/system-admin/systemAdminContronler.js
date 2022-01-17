@@ -258,6 +258,29 @@ router.post('/lock-unlock-user', authService.checkToken, async (req, res) => {
   }
 })
 
+// Mapping user code
+router.post('/mapping-user-code', authService.checkToken, async(req, res)=>{
+  const{userId, code} = req.body
+  try {
+    const flag = await SystemAdmin.findOne({ email: req.authData.userEmail })
+    if (!flag) {
+      res.json('system admin khong ton tai')
+    } else {
+      const user = await User.findOne({ _id: userId })
+      if (!user) {
+        res.json('user khong ton tai')
+      } else {
+        user.code = code
+        await user.save()
+        res.json(user)
+      }
+    }
+  } catch (error) {
+    console.log('Error as mapping-user-code', error)
+    res.json(error)
+  }
+})
+
 // View classroom list
 router.get('/view-classroom-list', authService.checkToken, async (req, res) => {
   try {
