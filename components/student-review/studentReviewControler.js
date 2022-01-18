@@ -138,6 +138,35 @@ router.get('/student-get-reviews/:classroomId', authService.checkToken, async (r
   }
 })
 
+// Get review
+router.get('/student-get-reviews/:classroomId', authService.checkToken, async (req, res) => {
+  const { classroomId, studentId } = req.params
+  try {
+    const classroom = await ClassRoom.findOne({ classroomId: classroomId })
+    if (!classroom) {
+      res.json('Classroom khong ton tai')
+    } else {
+      if (!(await isBelongToClass(req.authData.userEmail, classroomId))) {
+        res.json('May khong thuoc lop hoc nay')
+      } else {
+        const student_reviews = await StudentReview.find({
+          classroomId: classroomId,
+          studentId: studentId,
+        })
+          .populate('classroomId')
+          .populate('studentId')
+          .populate('assignmentId')
+          .populate('comments.user')
+        console.log('Student get reviews')
+        res.json(student_reviews)
+      }
+    }
+  } catch (error) {
+    console.log('error as student-get-reviews', error)
+    res.json(error)
+  }
+})
+
 // Teacher get reviews
 router.get('/teacher-get-reviews/:classroomId', authService.checkToken, async (req, res) => {
   const { classroomId } = req.params
