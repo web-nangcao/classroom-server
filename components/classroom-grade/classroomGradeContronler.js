@@ -17,15 +17,19 @@ async function isAssignmentFinallized(classroomId, assignmentId) {
   return new Promise(async (resolve, reject) => {
     try {
       const classroom_grade = await ClassroomGrade.findOne({ classroomId: classroomId })
-      classroom_grade.assignments.forEach((assignment) => {
-        if (
-          assignment.assignmentId.toString() == assignmentId.toString() &&
-          assignment.is_finallized == true
-        ) {
-          resolve(true)
-        }
-      })
-      resolve(false)
+      if (!classroom_grade) {
+        resolve(false)
+      } else {
+        classroom_grade.assignments.forEach((assignment) => {
+          if (
+            assignment.assignmentId.toString() == assignmentId.toString() &&
+            assignment.is_finallized == true
+          ) {
+            resolve(true)
+          }
+        })
+        resolve(false)
+      }
     } catch (error) {
       reject(error)
     }
@@ -37,41 +41,47 @@ async function updateOrCreateClassroomGrade(classroomId) {
     try {
       const classroom = await ClassRoom.findOne({ _id: classroomId }).populate('assignments')
       const assignments = []
-      classroom.assignments.forEach(async (assignment) => {
-        const is_finallized = await isAssignmentFinallized(classroomId, assignment._id)
-        assignments.push({ assignmentId: assignment._id, is_finallized: is_finallized })
-      })
-      const classroom_grade = await ClassroomGrade.findOne({ classroomId: classroomId })
-
-      if (!classroom_grade) {
-        const new_classroom_grade = await new ClassroomGrade({
-          classroomId: classroomId,
-          assignments: assignments,
-
-        }).save()
-        const grades = classroom_grade.grades
-        for (let i = 0; i < grades.length; i++) {
-          for (let j = 0; j < classroom.assignments.length; j++) {
-            if (!grades[i][`${classroom.assignments[j].name}`]) {
-              grades[i][`${classroom.assignments[j].name}`] = 0
-            }
-          }
-        }
-        new_classroom_grade = grades
-        resolve(new_classroom_grade.populate('assignments.assignmentId'))
+      if (classroom.assignments.length == 0) {
+        reject(new Error('Chua co assignment nao het'))
       } else {
-        classroom_grade.assignments = assignments
-        classroom_grade.grades = grades
-        const grades = classroom_grade.grades
-        for (let i = 0; i < grades.length; i++) {
-          for (let j = 0; j < classroom.assignments.length; j++) {
-            if (!grades[i][`${classroom.assignments[j].name}`]) {
-              grades[i][`${classroom.assignments[j].name}`] = 0
+
+        classroom.assignments.forEach(async (assignment) => {
+          const is_finallized = await isAssignmentFinallized(classroomId, assignment._id)
+          assignments.push({ assignmentId: assignment._id, is_finallized: is_finallized })
+        })
+         
+        const classroom_grade = await ClassroomGrade.findOne({ classroomId: classroomId })
+  
+        if (!classroom_grade) {
+          const new_classroom_grade = await new ClassroomGrade({
+            classroomId: classroomId,
+            assignments: assignments,
+  
+          }).save()
+          const grades = classroom_grade.grades
+          for (let i = 0; i < grades.length; i++) {
+            for (let j = 0; j < classroom.assignments.length; j++) {
+              if (!grades[i][`${classroom.assignments[j].name}`]) {
+                grades[i][`${classroom.assignments[j].name}`] = 0
+              }
             }
           }
+          new_classroom_grade = grades
+          resolve(new_classroom_grade.populate('assignments.assignmentId'))
+        } else {
+          classroom_grade.assignments = assignments
+          const grades = classroom_grade.grades
+          for (let i = 0; i < grades.length; i++) {
+            for (let j = 0; j < classroom.assignments.length; j++) {
+              if (!grades[i][`${classroom.assignments[j].name}`]) {
+                grades[i][`${classroom.assignments[j].name}`] = 0
+              }
+            }
+          }
+          classroom_grade.grades = grades
+          await classroom_grade.save()
+          resolve(classroom_grade.populate('assignments.assignmentId'))
         }
-        await classroom_grade.save()
-        resolve(classroom_grade.populate('assignments.assignmentId'))
       }
     } catch (error) {
       reject(error)
