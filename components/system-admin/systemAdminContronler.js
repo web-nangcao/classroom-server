@@ -61,16 +61,18 @@ router.post('/register', async (req, res) => {
         email: email,
         password: hash_password,
         name: name,
+        isActive: true
       }).save()
-
-      const activeLink = `${process.env.HOSTNAME}/system-admin/local-active-mail/${email}`
-      const message = mailService.activeMail(new_system_admin.email, activeLink)
-      res.json({
-        resValue: {
-          new_system_admin: new_system_admin,
-          message: message,
-        },
-      })
+      
+      res.json(new_system_admin)
+      // const activeLink = `${process.env.HOSTNAME}/system-admin/local-active-mail/${email}`
+      // const message = mailService.activeMail(new_system_admin.email, activeLink)
+      // res.json({
+      //   resValue: {
+      //     new_system_admin: new_system_admin,
+      //     message: message,
+      //   },
+      // })
     }
   } catch (error) {
     console.log('error as register new systemadmin', error)

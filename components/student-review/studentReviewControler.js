@@ -139,8 +139,8 @@ router.get('/student-get-reviews/:classroomId', authService.checkToken, async (r
 })
 
 // Get review
-router.get('/student-get-reviews/:classroomId', authService.checkToken, async (req, res) => {
-  const { classroomId, studentId } = req.params
+router.get('/get-review/:classroomId/:assignmentId/:studentId', authService.checkToken, async (req, res) => {
+  const { classroomId, studentId, assignmentId } = req.params
   try {
     const classroom = await ClassRoom.findOne({ classroomId: classroomId })
     if (!classroom) {
@@ -149,16 +149,26 @@ router.get('/student-get-reviews/:classroomId', authService.checkToken, async (r
       if (!(await isBelongToClass(req.authData.userEmail, classroomId))) {
         res.json('May khong thuoc lop hoc nay')
       } else {
-        const student_reviews = await StudentReview.find({
-          classroomId: classroomId,
-          studentId: studentId,
-        })
-          .populate('classroomId')
-          .populate('studentId')
-          .populate('assignmentId')
-          .populate('comments.user')
-        console.log('Student get reviews')
-        res.json(student_reviews)
+        const assignment = await Assignment({assignmentId: assignmentId})
+        if (!assignment) {
+          res.json('Assignment Id khong ton tai')
+        } else {
+          const user = await User.findOne({_id: studentId})
+          if (!user) {
+            res.json('StudentId ko ton tai')
+          } else {
+            const student_reviews = await StudentReview.find({
+              classroomId: classroomId,
+              studentId: studentId,
+            })
+              .populate('classroomId')
+              .populate('studentId')
+              .populate('assignmentId')
+              .populate('comments.user')
+            console.log('Student get reviews')
+            res.json(student_reviews)
+          }
+        }
       }
     }
   } catch (error) {
