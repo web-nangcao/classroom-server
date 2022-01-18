@@ -155,7 +155,8 @@ router.post('/create', authService.checkToken, async (req, res) => {
           break
         }
       }
-      res.json(resValue.populate('classroomId').populate('studentReviewId'))
+      const notification = await Notification.findOne({_id: resValue._id}).populate('classroomId').populate('studentReviewId')
+      res.json(notification)
     }
   } catch (error) {
     console.log('error as create-notification', error)
