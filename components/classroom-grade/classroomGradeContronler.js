@@ -44,7 +44,6 @@ async function updateOrCreateClassroomGrade(classroomId) {
       if (classroom.assignments.length == 0) {
         reject(new Error('Chua co assignment nao het'))
       } else {
-
         classroom.assignments.forEach(async (assignment) => {
           const is_finallized = await isAssignmentFinallized(classroomId, assignment._id)
           assignments.push({ assignmentId: assignment._id, is_finallized: is_finallized })
@@ -67,6 +66,7 @@ async function updateOrCreateClassroomGrade(classroomId) {
             }
           }
           new_classroom_grade = grades
+          await classroom_grade.save()
           resolve(new_classroom_grade.populate('assignments.assignmentId'))
         } else {
           classroom_grade.assignments = assignments
