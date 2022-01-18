@@ -94,7 +94,7 @@ router.post('/local-register', async (req, res) => {
   }
 })
 
-// Renew password
+// change password
 router.post('/renew-password', authService.checkToken, async (req, res) => {
   const { password } = req.body
   try {
@@ -117,6 +117,26 @@ router.post('/renew-password', authService.checkToken, async (req, res) => {
     }
   } catch (error) {
     console.log('Error as renew-password', email)
+    res.json(error)
+  }
+})
+
+// Change password-email
+router.post('/renew-password-email', async(req, res)=>{
+  const {email} = req.body
+  try {
+    const user = await User.findOne({email: email})
+    if (!email) {
+      res.json('Email khong ton tai')
+    } else{
+      const new_password = bcrypt.hashSync('539128', 10)
+      user.password = new_password
+      await user.save()
+      const message = await mailService.renewPassword(email, '539128')
+      res.json(message)
+    }
+  } catch (error) {
+    console.log('error as renew-password-email')
     res.json(error)
   }
 })
