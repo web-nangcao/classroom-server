@@ -42,25 +42,34 @@ async function updateOrCreateClassroomGrade(classroomId) {
         assignments.push({ assignmentId: assignment._id, is_finallized: is_finallized })
       })
       const classroom_grade = await ClassroomGrade.findOne({ classroomId: classroomId })
-      const grades = classroom_grade.grades
-      for (let i = 0; i < grades.length; i++) {
-        for (let j = 0; j < classroom.assignments.length; j++) {
-          if (!grades[i][`${classroom.assignments[j].name}`]) {
-            grades[i][`${classroom.assignments[j].name}`] = 0
-          }
-        }
-      }
+
       if (!classroom_grade) {
         const new_classroom_grade = await new ClassroomGrade({
           classroomId: classroomId,
           assignments: assignments,
-          grades: grades
+
         }).save()
+        const grades = classroom_grade.grades
+        for (let i = 0; i < grades.length; i++) {
+          for (let j = 0; j < classroom.assignments.length; j++) {
+            if (!grades[i][`${classroom.assignments[j].name}`]) {
+              grades[i][`${classroom.assignments[j].name}`] = 0
+            }
+          }
+        }
+        new_classroom_grade = grades
         resolve(new_classroom_grade.populate('assignments.assignmentId'))
       } else {
-        
         classroom_grade.assignments = assignments
         classroom_grade.grades = grades
+        const grades = classroom_grade.grades
+        for (let i = 0; i < grades.length; i++) {
+          for (let j = 0; j < classroom.assignments.length; j++) {
+            if (!grades[i][`${classroom.assignments[j].name}`]) {
+              grades[i][`${classroom.assignments[j].name}`] = 0
+            }
+          }
+        }
         await classroom_grade.save()
         resolve(classroom_grade.populate('assignments.assignmentId'))
       }
@@ -482,7 +491,7 @@ router.post(
 router.post('/upload-student-grade-board-ui', authService.checkToken, async (req, res) => {
   const { classroomId, grades } = req.body
   console.log('classroomId: ', classroomId)
-  console.log('type: ', typeof(classroomId))
+  console.log('type: ', typeof classroomId)
   let resValue = null
   const errorList = []
   try {
