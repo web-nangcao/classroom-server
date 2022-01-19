@@ -113,6 +113,7 @@ router.post('/create', authService.checkToken, async (req, res) => {
                   content: content,
                   notificationType: notificationType,
                   studentReviewId: studentReviewId,
+                  classroomId: student_review.classroomId
                 }).save()
 
                 const classroom = await ClassRoom.findOne({_id: student_review.classroomId})
@@ -145,6 +146,7 @@ router.post('/create', authService.checkToken, async (req, res) => {
                   content: content,
                   notificationType: notificationType,
                   studentReviewId: studentReviewId,
+                  classroomId: student_review.classroomId
                 }).save()
                 const classroom = await ClassRoom.findOne({_id: student_review.classroomId})
                 resValue = {
@@ -177,6 +179,7 @@ router.post('/create', authService.checkToken, async (req, res) => {
                       content: content,
                       notificationType: notificationType,
                       studentReviewId: studentReviewId,
+                      classroomId: student_review.classroomId
                     }).save()
                   }
                 }
