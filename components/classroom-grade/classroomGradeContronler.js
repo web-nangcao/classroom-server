@@ -56,15 +56,7 @@ async function updateOrCreateClassroomGrade(classroomId) {
             classroomId: classroomId,
             assignments: assignments,
           }).save()
-          const grades = classroom_grade.grades
-          for (let i = 0; i < grades.length; i++) {
-            for (let j = 0; j < classroom.assignments.length; j++) {
-              if (!grades[i][`${classroom.assignments[j].name}`]) {
-                grades[i][`${classroom.assignments[j].name}`] = 0
-              }
-            }
-          }
-          new_classroom_grade = grades
+
           await classroom_grade.save()
           resolve(new_classroom_grade.populate('assignments.assignmentId'))
         } else {

@@ -75,7 +75,7 @@ router.post('/create', authService.checkToken, async (req, res) => {
                 res.json('chua co diem')
               } else {
                 for (let i = 0; i < classroom.members.length; i++) {
-                  const user = await User.findOne({email: classroom.members[i]})
+                  const user = await User.findOne({email: classroom.members[i].email})
                   if (user && classroom.members.userType == 'Student') {
                     const notification = await new Notification({
                       userId: user._id,
@@ -156,7 +156,7 @@ router.post('/create', authService.checkToken, async (req, res) => {
                 res.json('classroomId ko ton tai')
               } else {
                 for (let i = 0; i < classroom.members.length; i++) {
-                  const user = await ClassRoom.findOne({email: classroom.members.email})
+                  const user = await ClassRoom.findOne({email: classroom.members[i].email})
                   if (user && classroom.members.userType == 'Teacher') {
                     const notification = await new Notification({
                       userId: user._id,
@@ -177,8 +177,8 @@ router.post('/create', authService.checkToken, async (req, res) => {
           break
         }
       }
-      res.json(resValue)
     }
+    res.json(resValue)
   } catch (error) {
     console.log('error as create-notification', error)
   }
