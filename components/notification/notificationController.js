@@ -57,11 +57,8 @@ function isBelongToClass(email, classroomId) {
 router.post('/create', authService.checkToken, async (req, res) => {
   const { userId, content, notificationType, classroomId, studentReviewId } = req.body
   try {
-    const user = await User.findOne({ _id: userId })
     let resValue = null
-    if (!user) {
-      res.json('User khong ton tai')
-    } else if (!content) {
+    if (!content) {
       res.json('Thieu thong tin content')
     } else {
       switch (notificationType) {
@@ -77,13 +74,18 @@ router.post('/create', authService.checkToken, async (req, res) => {
               if (!classroom_grade) {
                 res.json('chua co diem')
               } else {
-                const notification = await new Notification({
-                  userId: userId,
-                  content: content,
-                  notificationType: notificationType,
-                  classroomId: classroomId,
-                }).save()
-                resValue = notification
+                for (let i = 0; i < classroom.members.length; i++) {
+                  const user = await User.findOne({email: classroom.members[i]})
+                  if (user && classroom.members.userType == 'Student') {
+                    const notification = await new Notification({
+                      userId: user._id,
+                      content: content,
+                      notificationType: notificationType,
+                      classroomId: classroomId,
+                    }).save()
+                  }
+                }
+                resValue = `TEACHER_FINALLIZED_GRADE ${classroomId}`
               }
             }
           }
@@ -99,13 +101,18 @@ router.post('/create', authService.checkToken, async (req, res) => {
             ) {
               res.json('may khong co quyen tao thong bao nay')
             } else {
-              const notification = await new Notification({
-                userId: userId,
-                content: content,
-                notificationType: notificationType,
-                studentReviewId: studentReviewId,
-              }).save()
-              resValue = notification
+              const user = await User.findOne({ _id: userId })
+              if (!user) {
+                resValue = 'UserId khong ton tai'
+              } else {
+                const notification = await new Notification({
+                  userId: userId,
+                  content: content,
+                  notificationType: notificationType,
+                  studentReviewId: studentReviewId,
+                }).save()
+                resValue = notification
+              }
             }
           }
           break
@@ -120,13 +127,18 @@ router.post('/create', authService.checkToken, async (req, res) => {
             ) {
               res.json('may khong co quyen tao thong bao nay')
             } else {
-              const notification = await new Notification({
-                userId: userId,
-                content: content,
-                notificationType: notificationType,
-                studentReviewId: studentReviewId,
-              }).save()
-              resValue = notification
+              const user = await User.findOne({ _id: userId })
+              if (!user) {
+                resValue = 'Thieu userId'
+              } else {
+                const notification = await new Notification({
+                  userId: userId,
+                  content: content,
+                  notificationType: notificationType,
+                  studentReviewId: studentReviewId,
+                }).save()
+                resValue = notification
+              }
             }
           }
           break
@@ -139,13 +151,23 @@ router.post('/create', authService.checkToken, async (req, res) => {
             if (await isAdminOrTeacherOfClass(student_review.classroomId, req.authData.userEmail)) {
               res.json('Chi hoc sinh co quyen tao thong bao nay')
             } else {
-              const notification = await new Notification({
-                userId: userId,
-                content: content,
-                notificationType: notificationType,
-                studentReviewId: studentReviewId,
-              }).save()
-              resValue = notification
+              const classroom = await ClassRoom.findOne({_id: student_review.classroomId})
+              if (!classroom) {
+                res.json('classroomId ko ton tai')
+              } else {
+                for (let i = 0; i < classroom.members.length; i++) {
+                  const user = await ClassRoom.findOne({email: classroom.members.email})
+                  if (user && classroom.members.userType == 'Teacher') {
+                    const notification = await new Notification({
+                      userId: user._id,
+                      content: content,
+                      notificationType: notificationType,
+                      studentReviewId: studentReviewId,
+                    }).save()
+                  }
+                }
+                resValue = `Student request review ${classroom._id}`
+              }
             }
           }
           break
@@ -155,8 +177,7 @@ router.post('/create', authService.checkToken, async (req, res) => {
           break
         }
       }
-      const notification = await Notification.findOne({_id: resValue._id}).populate('classroomId').populate('studentReviewId')
-      res.json(notification)
+      res.json(resValue)
     }
   } catch (error) {
     console.log('error as create-notification', error)

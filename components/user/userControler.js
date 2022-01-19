@@ -4,6 +4,7 @@ const User = require('./User')
 const authService = require('../../services/authService')
 const bcrypt = require('bcrypt')
 const mailService = require('../../services/mailService')
+const ClassRoom = require('../classroom/ClassRoom')
 
 // POST - manage user profile
 router.post('/account/manage-profile', authService.checkToken, async (req, res) => {
@@ -34,6 +35,34 @@ router.post('/account/manage-profile', authService.checkToken, async (req, res) 
       errorList: errorList,
       resValue: resValue,
     })
+  }
+}) 
+
+// POST get user profile
+router.post('/get-usertype', authService.checkToken, async (req, res)=>{
+  const {email, classroomId} = req.body
+  try {
+    const user = await User.findOne({email: email})
+    if (!user) {
+      res.json('Email khong ton tai')
+    } else {
+      const classroom = await ClassRoom.findOne({_id: classroomId})
+      if (!classroom) {
+        res.json('classroomid khong ton tai')
+      } else {
+        let userType = null        
+        for (let i = 0; i < classroom.members.length; i++) {
+          if (classroom.members[i].email == email) {
+            userType = classroom.members[i].userType
+            break;
+          }
+        }
+        res.json(userType)
+      }
+    }
+  } catch (error) {
+    console.log('error as user-detail')
+    res.json(error)
   }
 })
 

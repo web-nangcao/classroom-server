@@ -55,7 +55,6 @@ async function updateOrCreateClassroomGrade(classroomId) {
           const new_classroom_grade = await new ClassroomGrade({
             classroomId: classroomId,
             assignments: assignments,
-  
           }).save()
           const grades = classroom_grade.grades
           for (let i = 0; i < grades.length; i++) {
@@ -124,7 +123,7 @@ async function export_grade_csv(type, classroomId, assignmentName) {
             },
             {
               id: 'name',
-              title: 'Họ và tên',
+              title: 'Ho va ten',
             },
           ]
           path = `public/classroom-grade/${classroomId}/student_list_template.csv`
@@ -148,7 +147,7 @@ async function export_grade_csv(type, classroomId, assignmentName) {
             },
             {
               id: 'name',
-              title: 'Họ và tên',
+              title: 'Ho va ten',
             },
           ]
           classroom_grade.assignments.forEach((assignment) => {
@@ -178,7 +177,7 @@ async function export_grade_csv(type, classroomId, assignmentName) {
             },
             {
               id: 'name',
-              title: 'Họ và tên',
+              title: 'Ho va ten',
             },
             {
               id: assignmentName,
@@ -344,7 +343,7 @@ router.post('/upload-student-list/:classroomId', authService.checkToken, async (
                 data.forEach((row) => {
                   const grade = {}
                   grade['code'] = row['Mssv']
-                  grade['name'] = row['Họ và tên']
+                  grade['name'] = row['Ho va ten']
                   classroom_grade.assignments.forEach((assignment) => {
                     grade[`${assignment.assignmentId.name}`] = 0
                   })
@@ -464,7 +463,7 @@ router.post(
                   data.forEach((row) => {
                     const grade = {}
                     grade['code'] = row['Mssv']
-                    grade['name'] = row['Họ và tên']
+                    grade['name'] = row['Ho va ten']
                     classroom_grade.assignments.forEach((assignment) => {
                       grade[`${assignment.assignmentId.name}`] =
                         row[`${assignment.assignmentId.name}`]
@@ -597,7 +596,7 @@ router.post(
       } else if (!assignment) {
         res.json('Assignment khong ton tai')
       } else {
-        if (!(await isAdminOrTeacherOfClass(classroomId, req.authData.userEmail))) {
+        if (await isAdminOrTeacherOfClass(classroomId, req.authData.userEmail)) {
           const form_data = new formidable.IncomingForm()
           form_data.parse(req, async (err, fields, files) => {
             if (err) {
@@ -626,18 +625,20 @@ router.post(
                     data.forEach((row) => {
                       const grade = {}
                       grade['code'] = row['Mssv']
-                      grade['name'] = row['Họ và tên']
+                      grade['name'] = row['Ho va ten']
                       grade[`${assignment.name}`] = row[`${assignment.name}`]
                       spec_grades[`${grade['code']}`] = grade
                     })
                     const grades = []
-                    classroom_grade.grades.forEach((grade) => {
+                    for (let i = 0; i < classroom_grade.grades.length; i++) {
+                      const grade = classroom_grade.grades[i]
                       const code = grade['code']
                       grade[`${assignment.name}`] = spec_grades[code][`${assignment.name}`]
                       grades.push(grade)
-                    })
+                    }
                     classroom_grade.grades = grades
                     await classroom_grade.save()
+                    
 
                     resValue = classroom_grade
                     console.log('upload student-spec-grade')
@@ -649,6 +650,8 @@ router.post(
                 })
             }
           })
+        } else {
+          res.json('May khong co quyen lam dieu nay')
         }
       }
     } catch (error) {
@@ -669,12 +672,16 @@ router.get('/classroom-grade-detail/:classroomId', authService.checkToken, async
   if (!classroom) {
     res.json('ClassroomId khong ton tai')
   } else {
-    const classroom_grade = await updateOrCreateClassroomGrade(classroomId)
-    if (!classroom_grade) {
-      res.json('Classroom_grade khong ton tai')
+    if (!await isAdminOrTeacherOfClass(classroomId, req.authData.userEmail)) {
+      res.json('Ban khong co quyen xem cai nay')
     } else {
-      const resValue = classroom_grade
-      res.json({ resValue: resValue })
+      const classroom_grade = await updateOrCreateClassroomGrade(classroomId)
+      if (!classroom_grade) {
+        res.json('Classroom_grade khong ton tai')
+      } else {
+        const resValue = classroom_grade
+        res.json({ resValue: resValue })
+      }
     }
   }
 })
