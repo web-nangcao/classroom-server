@@ -156,7 +156,7 @@ router.post('/create', authService.checkToken, async (req, res) => {
                 res.json('classroomId ko ton tai')
               } else {
                 for (let i = 0; i < classroom.members.length; i++) {
-                  const user = await ClassRoom.findOne({email: classroom.members[i].email})
+                  const user = await User.findOne({email: classroom.members[i].email})
                   if (user && (classroom.members[i].userType == 'Teacher' || classroom.members[i].userType =='Admin')) {
                     const notification = await new Notification({
                       userId: user._id,
