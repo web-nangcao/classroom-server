@@ -63,7 +63,7 @@ router.post('/create', authService.checkToken, async (req, res) => {
     } else {
       switch (notificationType) {
         case NotificationType.TEACHER_FINALLIZED_GRADE: {
-          const classroom = await ClassRoom.findOne({ _id: classroomId })
+          const classroom = await ClassRoom.findOne({ _id: classroomId }).populate('assignments')
           if (!classroom) {
             res.json('classroom khong ton tai')
           } else {
@@ -85,7 +85,10 @@ router.post('/create', authService.checkToken, async (req, res) => {
                     }).save()
                   }
                 }
-                resValue = `TEACHER_FINALLIZED_GRADE ${classroomId}`
+                resValue = {
+                  message: `TEACHER_FINALLIZED_GRADE ${classroomId}`,
+                  classroom: classroom
+                }
               }
             }
           }
@@ -111,7 +114,13 @@ router.post('/create', authService.checkToken, async (req, res) => {
                   notificationType: notificationType,
                   studentReviewId: studentReviewId,
                 }).save()
-                resValue = notification
+
+                const classroom = await ClassRoom.findOne({_id: student_review.classroomId})
+                resValue = {
+                  notification: notification,
+                  classroom: classroom,
+                  message: 'teacher reply review'
+                }
               }
             }
           }
@@ -137,7 +146,12 @@ router.post('/create', authService.checkToken, async (req, res) => {
                   notificationType: notificationType,
                   studentReviewId: studentReviewId,
                 }).save()
-                resValue = notification
+                const classroom = await ClassRoom.findOne({_id: student_review.classroomId})
+                resValue = {
+                  notification: notification,
+                  classroom: classroom,
+                  message: 'teacher update grade'
+                }
               }
             }
           }
@@ -166,7 +180,10 @@ router.post('/create', authService.checkToken, async (req, res) => {
                     }).save()
                   }
                 }
-                resValue = `Student request review ${classroom._id}`
+                resValue = {
+                  classroom: classroom,
+                  message: 'student request review'
+                }
               }
             }
           }
