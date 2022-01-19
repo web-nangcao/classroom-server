@@ -44,11 +44,11 @@ async function updateOrCreateClassroomGrade(classroomId) {
       if (classroom.assignments.length == 0) {
         reject(new Error('Chua co assignment nao het'))
       } else {
-        classroom.assignments.forEach(async (assignment) => {
+        for (let i = 0; i < classroom.assignments.length; i++) {
+          const assignment = classroom.assignments[i]
           const is_finallized = await isAssignmentFinallized(classroomId, assignment._id)
           assignments.push({ assignmentId: assignment._id, is_finallized: is_finallized })
-        })
-         
+        }
         const classroom_grade = await ClassroomGrade.findOne({ classroomId: classroomId })
   
         if (!classroom_grade) {
@@ -72,7 +72,7 @@ async function updateOrCreateClassroomGrade(classroomId) {
           const grades = classroom_grade.grades
           for (let i = 0; i < grades.length; i++) {
             for (let j = 0; j < classroom.assignments.length; j++) {
-              if (!grades[i][`${classroom.assignments[j].name}`]) {
+              if (grades[i][`${classroom.assignments[j].name}`] == undefined) {
                 grades[i][`${classroom.assignments[j].name}`] = 0
               }
             }
@@ -472,6 +472,7 @@ router.post(
                     studentCodes.push(row['Mssv'])
                   })
                   classroom_grade.grades = grades
+                  classroom_grade.markModified('grades')
                   await classroom_grade.save()
 
                   resValue = classroom_grade
@@ -514,6 +515,7 @@ router.post('/upload-student-grade-board-ui', authService.checkToken, async (req
       } else {
         const classroom_grade = await updateOrCreateClassroomGrade(classroomId)
         classroom_grade.grades = grades
+        classroom_grade.markModified('grades')
         await classroom_grade.save()
         res.json(classroom_grade)
       }
@@ -636,13 +638,15 @@ router.post(
                       grade[`${assignment.name}`] = spec_grades[code][`${assignment.name}`]
                       grades.push(grade)
                     }
-                    classroom_grade.grades = grades
+                    classroom_grade.grades = grades.slice()
+                    classroom_grade.markModified('grades')
                     await classroom_grade.save()
+                    
                     
 
                     resValue = classroom_grade
                     console.log('upload student-spec-grade')
-                    res.json({
+                    await res.json({
                       resValue: resValue,
                       errorList: errorList,
                     })
